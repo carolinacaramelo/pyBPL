@@ -1,7 +1,7 @@
 import numpy as np
 from skimage import morphology
 
-from .sknw import build_sknw
+from pybpl.bottomup.skeleton.sknw import build_sknw
 
 
 

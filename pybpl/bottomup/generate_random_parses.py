@@ -1,7 +1,7 @@
 import warnings
 
-from .skeleton import extract_skeleton
-from .initialize import RandomWalker
+from pybpl.bottomup.skeleton import extract_skeleton
+from pybpl.bottomup.initialize import RandomWalker
 
 
 
