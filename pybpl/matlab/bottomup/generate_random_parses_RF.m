@@ -23,6 +23,7 @@ function S_walks = generate_random_parses_RF(I,seed,max_ntrials,max_nwalk,max_ns
     if ~exist('nwalk_det', 'var')
         nwalk_det = ps.nwalk_det;
     end
+   
 
     % Check that image is in the right format    
     assert(UtilImage.check_black_is_true(I));
@@ -35,14 +36,16 @@ function S_walks = generate_random_parses_RF(I,seed,max_ntrials,max_nwalk,max_ns
     
     % Get character skeleton from the fast bottom-up method
     G = extract_skeleton(I);
+   
     
     % Create a set of random parses through random walks
     RW = RandomWalker(G);
     PP = ProcessParsesRF(I,lib,false);
+   
     
     % Add deterministic minimum angle walks
     for i=1:nwalk_det
-        PP.add(RW.det_walk);
+        PP.add(RW.det_walk); 
     end
     
     % Sample random walks until we reach capacity.
@@ -54,6 +57,14 @@ function S_walks = generate_random_parses_RF(I,seed,max_ntrials,max_nwalk,max_ns
     end
 
     PP.freeze;
+    %indx = PP.S_indx;
+    %fprintf('Strokes indexes');
+    %celldisp(PP.S_indx)
+    %Sub_ids = cell2mat(PP.S_indx)
+    %fprintf(Sub_ids)
+    %save indexes.mat indx;
     S_walks = PP.get_S;
     
+ 
 end
+
