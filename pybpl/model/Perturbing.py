@@ -29,31 +29,30 @@ from scipy import io
 class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
     
     def __init__ (self):
-
-    
-        # initializaton of class inheritances
-        self.lib = Library(use_hist = True)
-        self.STD = StrokeTypeDist(self.lib)
-        self.CTD = ConceptTypeDist(self.lib)
-        self.CM = CharacterModel(self.lib)
-        self.RTD = RelationTypeDist(self.lib)
-        self.STT = StrokeTokenDist(self.lib)
-        self.CTT = ConceptTokenDist(self.lib)
-        self.RTT = RelationTokenDist(self.lib)
-        
-        	
-        
-        
-        
-        
         # Generative process relevant variables 
         #dcan be previously defined 
         #self.ids = torch.tensor([1]) # ids of the substrokes
         self.n_strokes = 7 # number of strokes, it has to be <=10
         self.subparts = [30,300,45,70,89] #possible ids to use when sampling the id list 
         self.nsub = torch.tensor ([1]) #number of subparts its also <=10, in the normal case it depends on n_strokes
-        
+        self.R = []
+        self.P = []
         self.seq_ids = [[]]
+
+
+        # initializaton of class inheritances
+        self.lib = Library(use_hist = True)
+        self.STD = StrokeTypeDist(self.lib)
+        self.CTD = ConceptTypeDist(self.lib)
+        self.CHTD = CharacterTypeDist(self.lib)
+        self.CM = CharacterModel(self.lib)
+        self.RTD = RelationTypeDist(self.lib)
+        self.STT = StrokeTokenDist(self.lib)
+        self.CTT = ConceptTokenDist(self.lib)
+        self.RTT = RelationTokenDist(self.lib)
+        self.CT = CharacterType(self.n_strokes, self.P, self.R)
+        
+  
         
 #### FUNCTIONS FOR SAMPLING THE CHARACTER MODEL TYPE ################################################################################################
     
@@ -73,15 +72,17 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         # get the number of sub-strokes
         nsub = self.nsub
         # sample the sequence of sub-stroke IDs
-        self.sample_ids (perturbed)
+        self.sample_ids(perturbed)
         
     
 
         # sample control points for each sub-stroke in the sequence
         shapes = self.STD.sample_shapes_type(self.ids)
+        self.shapes = shapes
         # sample scales for each sub-stroke in the sequence
         invscales = self.STD.sample_invscales_type(self.ids)
-        p = StrokeType(nsub, self.ids, shapes, invscales)
+        self.invscales = invscales
+        p = StrokeType(nsub, self.ids, self.shapes, self.invscales)
         
         return p 
        
@@ -171,7 +172,8 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         m = np.invert(m)
         indices = np.argwhere(m)
         pT[indices] = 0
-    
+        assert pT.sum() != 0, "pT vector sum is zero"
+            
         return pT
     
     #remove entries that don't correspond to the possible indexes
@@ -225,7 +227,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
     
     def pT_truncate (self,ids):
         #assert ids.shape == torch.Size([])
-        R = self.truncateT ()
+        R = self.truncateT()
         R = R[ids]
         #print(R)
         pT = R / torch.sum(R)
@@ -305,12 +307,12 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
             scalar; log-probability of the stroke count
         """
         # check if any values are out of bounds
-        if self.n_strokes > len(self.kappa.probs):
+        if self.n_strokes > len(self.CHTD.kappa.probs):
             ll = torch.tensor(-float('Inf'))
         else:
             # score points using kappa
             # NOTE: subtract 1 to get 0-indexed samples
-            ll = self.kappa.log_prob(self.n_strokes-1)
+            ll = self.CHTD.kappa.log_prob(self.n_strokes-1)
     
         return ll
     
@@ -333,7 +335,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         # nsub should be a scalar
         assert self.nsub.shape == torch.Size([])
         # collect pvec for thisnumber of strokes
-        pvec = self.pmat_nsub[self.n_strokes-1]
+        pvec = self.STD.pmat_nsub[self.n_strokes-1]
         # make sure pvec is a vector
         assert len(pvec.shape) == 1
         # score using the categorical distribution
@@ -370,7 +372,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         return ll
     
     
-    def score_shapes_type(self, shapes): #stays the same 
+    def score_shapes_type(self): #stays the same 
         """
         Compute the log-probability of the control points for each sub-stroke
         under the prior
@@ -393,21 +395,21 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         assert len(self.ids.shape) == 1
         # record vector length
         nsub = len(self.ids)
-        assert shapes.shape[-1] == nsub
+        assert self.shapes.shape[-1] == nsub
         # reshape tensor (ncpt, 2, nsub) -> (ncpt*2, nsub)
-        shapes = shapes.view(self.ncpt*2,nsub)
+        shapes = self.shapes.view(self.ncpt*2,nsub)
         # transpose axes (ncpt*2, nsub) -> (nsub, ncpt*2)
-        shapes = shapes.transpose(0,1)
+        shapes =shapes.transpose(0,1)
         # create multivariate normal distribution
         mvn = dist.MultivariateNormal(
-            self.shapes_mu[self.ids], self.shapes_Cov[self.ids]
+            self.STD.shapes_mu[self.ids], self.STD.shapes_Cov[self.ids]
         )
         # score points using the multivariate normal distribution
         ll = mvn.log_prob(shapes)
 
         return ll
     
-    def score_invscales_type(self,  invscales): #also stays the same, we are not changing the way we sample shapes and scale 
+    def score_invscales_type(self): #also stays the same, we are not changing the way we sample shapes and scale 
         """
         Compute the log-probability of each sub-stroke's scale parameter
         under the prior
@@ -427,13 +429,13 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         if self.isunif:
             raise NotImplementedError
         # make sure these are vectors
-        assert len(invscales.shape) == 1
+        assert len(self.invscales.shape) == 1
         assert len(self.ids.shape) == 1
-        assert len(invscales) == len(self.ids)
+        assert len(self.invscales) == len(self.ids)
         # create gamma distribution
-        gamma = dist.Gamma(self.scales_con[self.ids], self.scales_rate[self.ids])
+        gamma = dist.Gamma(self.STD.scales_con[self.ids], self.STD.scales_rate[self.ids])
         # score points using the gamma distribution
-        ll = gamma.log_prob(invscales)
+        ll = gamma.log_prob(self.invscales)
 
         return ll
     
@@ -453,10 +455,10 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         ll : tensor
             scalar; log-probability of the stroke type
         """
-        nsub_score = self.score_nsub(self.n_strokes, ptype.nsub)
-        subIDs_scores = self.score_subIDs(ptype.ids)
-        shapes_scores = self.score_shapes_type(ptype.ids, ptype.shapes)
-        invscales_scores = self.score_invscales_type(ptype.ids, ptype.invscales)
+        nsub_score = self.score_nsub()
+        subIDs_scores = self.score_subIDs()
+        shapes_scores = self.score_shapes_type()
+        invscales_scores = self.score_invscales_type()
         ll = nsub_score + torch.sum(subIDs_scores) + torch.sum(shapes_scores) \
              + torch.sum(invscales_scores) #sum of scores
 
@@ -480,12 +482,12 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         assert isinstance(ctype, ConceptType)
         # score the number of parts
         ll = 0.
-        ll = ll + self.score_n_strokes(ctype.k)
+        ll = ll + self.score_n_strokes()
         # step through and score each part
-        for i in range(ctype.k):
-            ll = ll + self.pdist.score_part_type(ctype.k, ctype.part_types[i])
-            ll = ll + self.rdist.score_relation_type(
-                ctype.part_types[:i], ctype.relation_types[i]
+        for i in range(self.n_strokes):
+            ll = ll + self.score_part_type( self.P[i])
+            ll = ll + self.CTD.rdist.score_relation_type(
+                self.P[:i], self.R[i]
             )
 
         return ll
@@ -493,74 +495,92 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
 
 ######## OPTIMIZING CHARACTER MODEL TYPE ###################
         
-        def optimize_type(self, c, lr, nb_iter, eps, show_examples=True):
-            """
-            Take a character type and optimize its parameters to maximize the
-            likelihood under the prior, using gradient descent
+    def optimize_type(self, c, lr, nb_iter, eps, show_examples=True):
+        """
+        Take a character type and optimize its parameters to maximize the
+        likelihood under the prior, using gradient descent
 
-            Parameters
-            ----------
-            model : CharacterModel
-            c : CharacterType
-            lr : float
-            nb_iter : int
-            eps : float
-            show_examples : bool
+        Parameters
+        ----------
+        model : CharacterModel
+        c : CharacterType
+        lr : float
+        nb_iter : int
+        eps : float
+        show_examples : bool
 
-            Returns
-            -------
-            score_list : list of float
+        Returns
+        -------
+        score_list : list of float
 
-            """
-            # round nb_iter to nearest 10
-            nb_iter = np.round(nb_iter, -1)
-            # get optimizable variables & their bounds
-            c.train()
-            params = c.parameters()
-            lbs = c.lbs(eps)
-            ubs = c.ubs(eps)
-            # optimize the character type
-            score_list = []
-            optimizer = torch.optim.Adam(params, lr=lr)
-            if show_examples:
-                fig, axes = plt.subplots(10, 4, figsize=(4, 10))
-            interval = int(nb_iter / 10)
-            for idx in range(nb_iter):
-                if idx % interval == 0:
-                    # print optimization progress
-                    print('iteration #%i' % idx)
-                    if show_examples:
-                        # sample 4 tokens of current type (for visualization)
-                        for i in range(4):
-                            token =self.sample_token(c)
-                            img = self.sample_image(token)
-                            axes[idx//interval, i].imshow(img, cmap='Greys')
-                            axes[idx//interval, i].tick_params(
-                                which='both',
-                                bottom=False,
-                                left=False,
-                                labelbottom=False,
-                                labelleft=False
-                            )
-                        axes[idx//interval, 0].set_ylabel('%i' % idx)
-                # zero optimizer gradients
-                optimizer.zero_grad()
-                # compute log-likelihood of the token
-                score = self.score_type(c)
-                score_list.append(score.item())
-                # gradient descent step (minimize loss)
-                loss = -score
-                loss.backward()
-                optimizer.step()
-                # project all parameters into allowable range
-                with torch.no_grad():
-                    for param, lb, ub in zip(params, lbs, ubs):
-                        if lb is not None:
-                            torch.max(param, lb, out=param)
-                        if ub is not None:
-                            torch.min(param, ub, out=param)
+        """
+        # round nb_iter to nearest 10
+        nb_iter = np.round(nb_iter, -1)
+        # get optimizable variables & their bounds
+        c.train()
+        params = c.parameters()
+        lbs = c.lbs(eps)
+        ubs = c.ubs(eps)
+        # optimize the character type
+        score_list = []
+        optimizer = torch.optim.Adam(params, lr=lr)
+        if show_examples:
+           fig, axes = plt.subplots(10, 4, figsize=(4, 10))
+        interval = int(nb_iter / 10)
+        for idx in range(nb_iter):
+            if idx % interval == 0:
+                # print optimization progress
+                print('iteration #%i' % idx)
+                if show_examples:
+                    # sample 4 tokens of current type (for visualization)
+                    for i in range(4):
+                        token =self.CM.sample_token(c)
+                        img = self.CM.sample_image(token)
+                        axes[idx//interval, i].imshow(img, cmap='Greys')
+                        axes[idx//interval, i].tick_params(
+                            which='both',
+                            bottom=False,
+                            left=False,
+                            labelbottom=False,
+                            labelleft=False
+                        )
+                    axes[idx//interval, 0].set_ylabel('%i' % idx)
+            # zero optimizer gradients
+            optimizer.zero_grad()
+            # compute log-likelihood of the token
+            score = self.score_type(c)
+            score_list.append(score.item())
+            # gradient descent step (minimize loss)
+            loss = -score
+            loss.backward()
+            optimizer.step()
+            # project all parameters into allowable range
+            with torch.no_grad():
+                for param, lb, ub in zip(params, lbs, ubs):
+                    if lb is not None:
+                        torch.max(param, lb, out=param)
+                    if ub is not None:
+                        torch.min(param, ub, out=param)
 
-            return score_list
+        return score_list
+    
+    def optimize(self,c, lr, nb_iter, eps):
+        # optimize the character type that we sampled
+        score_list = self.optimize_type(c, lr, nb_iter, eps)
+        # plot log-likelihood vs. iteration
+        plt.figure()
+        plt.plot(score_list)
+        plt.ylabel('log-likelihood')
+        plt.xlabel('iteration')
+        plt.show()
+        
+        
+        
+    
+        
+    
+        
+        
 
         
         
@@ -584,46 +604,34 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
             print('\trelation category: %s' % c.relation_types[i].category)
         print('----END CHARACTER TYPE INFO----')
 
-    def test_dataset (self,n_strokes, nsub, alpha, perturbed):#,nb_iter):
-        #lr=1e-3
-        #eps=1e-4
+    def test_dataset (self,n_strokes, nsub, alpha, perturbed, nb_iter):#,nb_iter):
+        lr=1e-3
+        eps=1e-4
         print('generating character...')
-        lib = Library(use_hist=True)
+        
         model = Perturbing()
-        model.n_strokes = n_strokes
-        subp_list = [10,20]
+        model.n_strokes = torch.tensor (n_strokes)
+        subp_list =[425]
         model.subparts = subp_list #possible ids to use when sampling the id list 
         model.alpha = alpha 
-        model.nsub = torch.tensor ([nsub])
+        model.nsub = torch.tensor (nsub)
        
         
-        model.get_part_type(perturbed)
+        model.get_part_type(perturbed) #isto é preciso????
         c_type = model.known_stype(perturbed)
         model.display_type(c_type)
         print('THESE ARE THE IDS', model.ids)
         #print('num strokes: %i' % model.n_strokes)
         #print('num sub-strokes: ', model.nsub.item())
         
-        
-        
         # optimize the character type that we sampled
-        #score_list = model.optimize_type(c_type, lr, nb_iter, eps)
-        # plot log-likelihood vs. iteration
-        #plt.figure()
-        #plt.plot(score_list)
-        #plt.ylabel('log-likelihood')
-        #plt.xlabel('iteration')
-        #plt.show()
-    
-    
-    
-   
-    
+        model.optimize(c_type,lr, nb_iter, eps)
+
         c_token = model.CM.sample_token(c_type)
         c_image = model.CM.sample_image(c_token)
         plt.rcParams["figure.figsize"] = [105, 105]
         #plt.imshow(c_image, cmap='Greys')
-        plt.imsave('original.png', c_image, cmap='Greys')
+        plt.imsave('./original.png', c_image, cmap='Greys')
             
             
         
@@ -634,40 +642,57 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         #set the parameters to sample the primitives 
         self.n_strokes = 1 #we begin 1 stroke and 1 subtroke in order to visualize the primitives that are being used 
         self.nsub = torch.tensor ([1])
-        subpart_idx = np.linspace(1,10,10, dtype = int)
+        subpart_idx = np.linspace(1,1212,1212, dtype = int)
+        #subpart_idx2 = np.linspace(600,1212,612, dtype = int)
         subpart_idx = subpart_idx.tolist()
-        fig = plt.figure(figsize=(105, 105))
-        rows = 2
-        columns = 5
+        #subpart_idx2 = [585]
+        
+        rows = 34
+        columns = 36
+        
+        fig ,ax= plt.subplots(nrows=rows,ncols=columns,figsize=(105,105))
+       
         
         
-        for i in subpart_idx:
-            
-            subpart_sample = subpart_idx[i-1]
-            
+        count_images=0
+        for i in range(rows):
+            for j in range(columns):
+                #try:
+                subpart_sample = subpart_idx[count_images]
+                self.subparts = subpart_sample
+                #self.sample_ids(False) 
+                self.get_part_type(False)
+                c_type = self.known_stype(False)
+                print("done", count_images)
+                c_token = self.CM.sample_token(c_type)
+                c_image = self.CM.sample_image(c_token)
+               
+                
+                
+                
+                ax[i,j].imshow(c_image, cmap="Greys")
+                ax[i,j].set_title("prim_" + str(count_images),fontsize=20)
+                count_images+=1
+                    #frame = plt.gca()
+                    #frame.axes.get_xaxis().set_visible(False)
+                    #frame.axes.get_yaxis().set_visible(False)
+                #except IndexError:
+                    #StopIteration
+                    
+               
+
+                
+        fig.tight_layout()
+        #plt.show()
+        
+
            
-            self.subparts = subpart_sample
-            self.sample_ids(False) 
-            self.get_part_type(False)
-            c_type = self.known_stype(False)
-            c_token = self.CM.sample_token(c_type)
-            c_image = self.CM.sample_image(c_token)
-            fig.add_subplot(rows, columns, i)
-           
-           
-            plt.axis('off')
-            plt.title("prim_" + str(i))
-            plt.imshow(c_image, cmap="Greys")
-            #plt.show()
-            
-            
-            
-           
-            
-            
+            #fig.add_subplot(rows, columns, i)
+
+       
             
             #plt.subplot.set_title("prim"+str(i))
-        plt.savefig('/Users/carolinacaramelo/Desktop/Thesis_results/primitives_all.png', cmap='Greys')
+        fig.savefig('/Users/carolinacaramelo/Desktop/Thesis_results/primitives_all2.png', cmap='Greys')
        
            
     
@@ -842,7 +867,8 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         list_ids =l[len(l)-1]
 
         array_ids = np.array(list_ids)
-        array_ids = (array_ids[1]).astype("float32")
+        array_ids = (array_ids[1])
+        
         self.n_strokes=array_ids.size
 
         print(array_ids)
@@ -853,15 +879,16 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         ids=[]
 
         for i in range(array_ids.size):
-            for j in range (array_ids[i].size):
-                list_ids=[]
+            for j in range (array_ids[i][0].size):
+                for k in range (array_ids[i][0][0].size):
+                    list_ids=[]
                 
-                array_idx = array_ids[i][j]
+                    array_idx = array_ids[i][0][j][k].astype("float32")
                 
-                print(array_ids)
-                list_ids += [array_idx]
+                    print(array_ids)
+                    list_ids += [array_idx]
                 
-                ids += [torch.tensor(list_ids).long()]#in tensor form inside the list
+            ids += [torch.tensor(list_ids).long()]#in tensor form inside the list
                 
         print("ids_1", ids)
         self.ids = ids
@@ -895,10 +922,11 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         array_nsub = np.array(nsub)
         array_nsub = (array_nsub[1])
         
-        list_nsub=[]
+       
         nsub = []
         
         for i in range(array_nsub.size):
+            list_nsub=[]
             list_nsub += [(((array_nsub[i])[0])[0])[0]]
             nsub += [torch.tensor(list_nsub)]
         self.nsub = nsub
@@ -936,20 +964,27 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         array_gpos = (array_gpos[1])
         
         gpos=[]
-        list_gpos = []
+       
+        l =[]
         
         for i in range(array_gpos.size):
-            print(i)
-            try:
-                a = (((array_gpos[i])[0])[0]).tolist()
-                list_gpos += [torch.tensor([a])]
-            
-            except:
-                list_gpos += [np.array([0,0]).tolist()]
+            list_gpos = []
+            for s in range(2):
                 
+                try:
+                    a1 = (((array_gpos[i])[0])[0])[s]
+                    a2 = [a1]
+                    list_gpos += a2
+                
+                except IndexError:
+                    b = [0]
+                    print(b)
+                    list_gpos += b
+            l += [torch.tensor(list_gpos)]
+                    
                 
             
-        gpos += list_gpos#in tensor (1,2) form inside the list
+        gpos += l#in tensor (1,2) form inside the list
             
         self.gpos = gpos
         print("gpos_1", gpos)
@@ -985,7 +1020,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         
         list_ncpt=[]
         ncpt=[]
-        for i in range(array_ncpt.size):
+        for i in range(self.n_strokes):
             try:
                 list_ncpt += [(((array_ncpt[i])[0])[0])[0]]
                 
@@ -1008,7 +1043,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         array_subid_spot = (array_subid_spot[1])
         
         subid_spot=[]
-        for i in range(array_subid_spot.size):
+        for i in range(self.n_strokes):
             try:
                 subid_spot += [(((array_subid_spot[i])[0])[0])[0]]
                 
@@ -1030,7 +1065,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         array_attach_spot = (array_attach_spot[1])
         
         attach_spot=[]
-        for i in range(array_attach_spot.size):
+        for i in range(self.n_strokes):
             try:
                 attach_spot += [(((array_attach_spot[i])[0])[0])[0]]
                 
@@ -1080,10 +1115,12 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         
         inv=[]
         for i in range(array_inv_token.size):
-                inv_token =[]
-                inv_token  += [(((array_inv_token[i])[0])[0])[0]]
-                inv+=[torch.tensor(inv_token)]
-           
+            inv_token =[]
+            for j in range (self.nsub[i].item()):
+          
+                    inv_token  += [(((array_inv_token[i])[0])[j])[0]]
+            inv+=[torch.tensor(inv_token)]
+               
             
             
         self.inv_token  = inv
@@ -1101,19 +1138,32 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         
        
         shapes=[]
+        
         for i in range(array_shapes_token.size):
             shapes_token =[]
-            for j in range(int((array_shapes_token[i][0]).size/2)):
-                l =[]
-                for s in range(2):
-                    list_coo=[]
-                    for k in range(self.nsub[0]):
-                        list_coo+= [(array_shapes_token[i][k][j][s])]
-                    l += [list_coo]
-                shapes_token +=[l]                          
-                                         
-            shapes += [torch.tensor(shapes_token)]
-                
+            if array_shapes_token[i][0].size == 10:
+                for j in range(int((array_shapes_token[i][0]).size/2)):
+                    l =[]
+                    for s in range(2):
+                        list_coo=[]
+                        list_coo+= [(array_shapes_token[i][0][j][s])]
+                        l += [list_coo]
+      
+                    shapes_token +=[l]
+                shapes += [torch.tensor(shapes_token)]
+        
+            else:
+                for j in range(5):
+                    l =[]
+                    for k in range(2):
+                        list_coo=[]
+                        #for s in range(self.nsub[i].item()):
+                        list_coo+= (array_shapes_token[i][0][j][k].tolist())
+                        l += [list_coo]
+                    shapes_token +=[l]                       
+                                             
+                shapes += [torch.tensor(shapes_token)]
+       
              
         self.shapes_token  = shapes
         print("shapes_token_1", shapes)
@@ -1179,363 +1229,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         self.r_blur_sigma = blur_sigma[0]
         print("blur_sigma_1", blur_sigma)
         
-    def load2(self):
-        #IDS_TYPE
-        ids = io.loadmat('./cell_ids2.mat')
-
-        items = ids.items()
-        l =list(items)
-
-        list_ids =l[len(l)-1]
-
-        array_ids = np.array(list_ids)
-        array_ids = (array_ids[1]).astype("float32")
-        self.n_strokes=array_ids.size
-
-        print(array_ids)
-
-
-        
-
-        ids=[]
-
-        for i in range(array_ids.size):
-            for j in range (array_ids[i].size):
-                list_ids=[]
-                
-                array_idx = array_ids[i][j]
-                
-                print(array_ids)
-                list_ids += [array_idx]
-                
-                ids += [torch.tensor(list_ids).long()]#in tensor form inside the list
-                
-        print("ids_2", ids)
-        self.ids = ids
-        
-        #INVSCALE_TYPE
-        
-        invscale_type = io.loadmat("./invscale_type2.mat")
-        items = invscale_type.items()
-        l =list(items)
-        list_inv_type =l[len(l)-1]
-        array_inv_type = np.array(list_inv_type)
-        array_inv_type = (array_inv_type[1])
-        
-        list_inv_type=[]
-        inv =[]
-        for i in range(array_inv_type.size):
-            list_inv_type += [(((array_inv_type[i])[0])[0])[0]]
-            inv += [torch.tensor(list_inv_type)]#in tensor form 
-        self.inv_type = inv
-        print("invscale_2", inv)
-        
-            
-        #NSUB TYPE
-        nsub = io.loadmat('./nsub2.mat')
-        
-        items = nsub.items()
-        l =list(items)
-        
-        nsub =l[len(l)-1]
-        
-        array_nsub = np.array(nsub)
-        array_nsub = (array_nsub[1])
-        
-        list_nsub=[]
-        nsub = []
-        
-        for i in range(array_nsub.size):
-            list_nsub += [(((array_nsub[i])[0])[0])[0]]
-            nsub += [torch.tensor(list_nsub)]
-        self.nsub = nsub
-        print("nsub_2",nsub)
-        
-        #RELATION TYPE 
-         
-        #category   
-        r = io.loadmat('./r_type2.mat')
-        
-        items = r.items()
-        l =list(items)
-        
-        list_r =l[len(l)-1]
-        
-        array_r = np.array(list_r)
-        array_r = (array_r[1])
-        
-        list_r=[]
-        
-        for i in range(array_r.size):
-            list_r += [((array_r[i])[0])[0]] #in list form 
-        self.r = list_r
-        print("relation category_2" , list_r)
-        
-        #gpos
-        gpos = io.loadmat('./r_gpos2.mat')
-        
-        items = gpos.items()
-        l =list(items)
-        
-        gpos =l[len(l)-1]
-        
-        array_gpos = np.array(gpos)
-        array_gpos = (array_gpos[1])
-        
-        gpos=[]
-        list_gpos = []
-        
-        for i in range(array_gpos.size):
-            print(i)
-            try:
-                a = (((array_gpos[i])[0])[0]).tolist()
-                list_gpos += [torch.tensor([a])]
-            
-            except:
-                list_gpos += [np.array([0,0]).tolist()]
-                
-                
-            
-        gpos += list_gpos#in tensor (1,2) form inside the list
-            
-        self.gpos = gpos
-        print("gpos_2", gpos)
-        
-        #nprev
-        nprev = io.loadmat('./r_nprev2.mat')
-        
-        items = nprev.items()
-        l =list(items)
-        
-        nprev =l[len(l)-1]
-        
-        array_nprev= np.array(nprev)
-        array_nprev = (array_nprev[1])
-        
-        nprev=[]
-        
-        for i in range(array_nprev.size):
-            nprev += [(((array_nprev[i])[0])[0])[0]] #in list form 
-        self.nprev = nprev
-        print("nprev_2", nprev)
-        
-        
-        #ncpt
-        ncpt = io.loadmat('./r_ncpt2.mat')
-        items = ncpt.items()
-        l =list(items)
-        
-        ncpt =l[len(l)-1]
-        
-        array_ncpt= np.array(ncpt)
-        array_ncpt = (array_ncpt[1])
-        
-        list_ncpt=[]
-        ncpt=[]
-        for i in range(array_ncpt.size):
-            try:
-                list_ncpt += [(((array_ncpt[i])[0])[0])[0]]
-                
-            except IndexError:
-                list_ncpt += [0]
-        ncpt += list_ncpt
-            
-        print("ncpt_2", ncpt) 
-        self.ncpt_r = ncpt
-        
-        
-        #subid_spot
-        subid_spot = io.loadmat('./r_subid2.mat')
-        items = subid_spot.items()
-        l =list(items)
-        
-        subid_spot =l[len(l)-1]
-        
-        array_subid_spot= np.array(subid_spot)
-        array_subid_spot = (array_subid_spot[1])
-        
-        subid_spot=[]
-        for i in range(array_subid_spot.size):
-            try:
-                subid_spot += [(((array_subid_spot[i])[0])[0])[0]]
-                
-            except IndexError:
-                subid_spot += [0]
-            
-            
-        self.subid_spot = subid_spot
-        print("subid_2",subid_spot)
-        
-        #attach_spot
-        attach_spot = io.loadmat('./r_attach_spot2.mat')
-        items = attach_spot.items()
-        l =list(items)
-        
-        attach_spot =l[len(l)-1]
-        
-        array_attach_spot= np.array(attach_spot)
-        array_attach_spot = (array_attach_spot[1])
-        
-        attach_spot=[]
-        for i in range(array_attach_spot.size):
-            try:
-                attach_spot += [(((array_attach_spot[i])[0])[0])[0]]
-                
-            except IndexError:
-                attach_spot +=[0]
-            
-            
-        self.attach_spot = attach_spot
-        print("attach_spot_2",attach_spot)
-        
-        #pos_token
-        pos_token = io.loadmat('./pos_token2.mat')
-        items = pos_token.items()
-        l =list(items)
-        
-        pos_token =l[len(l)-1]
-        
-        array_pos_token= np.array(pos_token)
-        array_pos_token = (array_pos_token[1])
-        
-        
-        
-        pos=[]
-        for i in range(array_pos_token.size):
-            
-                pos_token=[]
-                pos_token += (((array_pos_token[i])[0])[0]).tolist()
-                pos+= [torch.tensor(pos_token)]
-                
-           
-            
-            
-        self.pos_token = pos
-        print("pos_token_2", pos)
-        
-        
-        #invscales_token
-        inv_token = io.loadmat('./invscale_token2.mat')
-        items = inv_token.items()
-        l =list(items)
-        
-        inv_token  =l[len(l)-1]
-        
-        array_inv_token = np.array(inv_token)
-        array_inv_token  = (array_inv_token[1])
-        
-        
-        inv=[]
-        for i in range(array_inv_token.size):
-                inv_token =[]
-                inv_token  += [(((array_inv_token[i])[0])[0])[0]]
-                inv+=[torch.tensor(inv_token)]
-           
-            
-            
-        self.inv_token  = inv
-        print("inv_token_2", inv)
-        
-        #shapes_token
-        shapes_token = io.loadmat('./shapes_token2.mat')
-        items = shapes_token.items()
-        l =list(items)
-        
-        shapes_token=l[len(l)-1]
-        
-        array_shapes_token = np.array(shapes_token)
-        array_shapes_token = (array_shapes_token[1])
-        
-       
-        shapes=[]
-        for i in range(array_shapes_token.size):
-            shapes_token =[]
-            for j in range(int((array_shapes_token[i][0]).size/2)):
-                l =[]
-                for s in range(2):
-                    list_coo=[]
-                    for k in range(self.nsub[0]):
-                        list_coo+= [(array_shapes_token[i][k][j][s])]
-                    l += [list_coo]
-                shapes_token +=[l]                          
-                                         
-            shapes += [torch.tensor(shapes_token)]
-                
-             
-        self.shapes_token  = shapes
-        print("shapes_token_2", shapes)
-        
-        
-        
-        #eval_spot_token
-        eval_spot_token = io.loadmat('./eval_spot_token2.mat')
-        items = eval_spot_token.items()
-        l =list(items)
-        
-        eval_spot_token=l[len(l)-1]
-        
-        array_eval_spot_token = np.array(eval_spot_token)
-        array_eval_spot_token = (array_eval_spot_token[1])
-        
-        eval_spot_token =[]
-        for i in range(array_eval_spot_token.size):
-            try:
-                eval_spot_token += [(((array_eval_spot_token[i])[0])[0])[0]]
-            
-            except IndexError:
-                eval_spot_token+=[0]
-            
-            
-        self.eval_spot_token = eval_spot_token
-        print("eval_spot_token_2", eval_spot_token)
-        
-        #epsilon
-        epsilon = io.loadmat('./epsilon2.mat')
-        items = epsilon.items()
-        l =list(items)
-        
-        epsilon=l[len(l)-1]
-        
-        array_epsilon = np.array(epsilon)
-        array_epsilon = (array_epsilon[1])
-        
-        epsilon =[]
-        for i in range(array_epsilon.size):
-            epsilon += [((array_epsilon[i])[0])]
-            
-        
-        self.r_epsilon = epsilon[0]
-        print("epsilon_2", epsilon)
-        
-        
-        #blur_sigma
-        blur_sigma = io.loadmat('./blur_sigma2.mat')
-        items = blur_sigma.items()
-        l =list(items)
-        
-        blur_sigma=l[len(l)-1]
-        
-        array_blur_sigma = np.array(blur_sigma)
-        array_blur_sigma = (array_blur_sigma[1])
-        
-        blur_sigma =[]
-        for i in range(array_blur_sigma.size):
-            blur_sigma += [array_blur_sigma[i][0]]
-            
-        
-        self.r_blur_sigma = blur_sigma[0]
-        print("blur_sigma_2", blur_sigma)
-        
-        
-        
-       
-        
-
-
-   
-        
-        
-        
+    
 
 
 #NEW RELATION TYPE SAMPLING 

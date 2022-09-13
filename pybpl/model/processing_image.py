@@ -13,7 +13,7 @@ import cv2
 import skimage.exposure
 
 
-def process_image(im):
+def process_image(im, num):
     #Process images after generative phase in order to do inference 
     #Posterior to this, this will have to be transformed in a loop in order to process every generated new image
     
@@ -110,9 +110,9 @@ def process_image(im):
     
     result = skimage.exposure.rescale_intensity(blur, in_range=(127.5,255), out_range=(0,255))
     
-    cv2.imwrite("./final_after_inference.png", result)
+    cv2.imwrite("./image%d"%num+".png", result)
     
-    cv2.waitKey()
+    cv2.waitKey(1000)
     cv2.destroyAllWindows()
     
     
