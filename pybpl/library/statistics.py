@@ -18,13 +18,16 @@ import scipy.interpolate as inter
 import seaborn as sns
 from sklearn.neighbors import KernelDensity
 from sklearn.model_selection import GridSearchCV
+import mpl_scatter_density # adds projection='scatter_density'
+from matplotlib.colors import LinearSegmentedColormap
+
 
 #flatten a list
 def flatten(l):
     return [item for sublist in l for item in sublist]
 
 
-def scatter_start():
+def statistics_start():
     #try to visualize the log start matrix
     #transition one x=1 corresponds to prim1 being sampled first, transition two x=2 corresponds to prim2 being sampled first, etc. 
     lib = Library (use_hist= True)
@@ -66,13 +69,32 @@ def scatter_start():
     #scatter plot of the log start matrix, probabilities of each primitive being sampled first
     #by doing this we get the perspective of when generating characters what are the primitives that are most probable to 
     #be sampled first
-    plt.scatter (x,y, s =1)
-    plt.plot(x,y)
-    
+    plt.figure(figsize=(10,10))
+    #plt.scatter (x,y, s =1)
+    plt.bar(x,y)
     plt.xlabel('Transitions')
     plt.ylabel('Probability')
+    plt.title('Probability distribution of start primitives')
     plt.show()
     
+    #density plot
+    white_viridis = LinearSegmentedColormap.from_list('white_viridis', [
+    (0, '#ffffff'),
+    (1e-20, '#440053'),
+    (0.2, '#404388'),
+    (0.4, '#2a788e'),
+    (0.6, '#21a784'),
+    (0.8, '#78d151'),
+    (1, '#fde624'),
+    ], N=256)
+
+    fig = plt.figure(figsize=(10,10))
+    ax = fig.add_subplot(1, 1, 1, projection='scatter_density')
+    ax.set_title('Probability distribution of start primitives')
+    density = ax.scatter_density(x, y, cmap=white_viridis)
+    fig.colorbar(density, label='Number of points per pixel')
+    plt.show()
+        
     #saving the statistics of log start matrix
     np.savetxt("./logstart",y)
     file = open("./statistics", 'w') 
@@ -130,7 +152,7 @@ def statistics_pT():
 
     #getting the scatter plot of the pT matrix 
     #having a better view of which transitions are the msot probable to happen when generating new characters 
-    f, ax = plt.subplots(figsize=(20,20))
+    f, ax = plt.subplots(figsize=(10,10))
     plt.scatter (x,y, s =1)
     plt.plot(x,y)
     ax.set_ylim(ymin=0)
@@ -141,21 +163,22 @@ def statistics_pT():
     plt.show()
     
     #plotting the same scatter plot but with quantiles 
-    f, ax = plt.subplots(figsize=(20,20))
+    f, ax = plt.subplots(figsize=(10,10))
     plt.scatter (x,y, s =1)
     plt.plot(x,y)
     ax.set_ylim(ymin=0)
     ax.set_xlim(xmin=0)
-    plt.axvline(x = x1, color = 'k', label = 'Q1')
-    plt.axvline(x = x2, color = 'k', label = 'Q2')
-    plt.axvline(x = x3, color = 'k', label = 'Q3')
+    plt.axvline(x = x1,  color = 'r', label = 'Quartile 1')
+    plt.axvline(x = x2, color = 'r', label = 'Quartile 2')
+    plt.axvline(x = x3, color = 'r', label = 'Quartile 3')
+    
     plt.xlabel('Transitions')
     plt.ylabel('Probability')
     plt.title('Probability distribution of transitions between primitives')
     plt.show()
     
     #saving the statistics of the pT matrix 
-    file = open("./statistics", 'w') 
+    file = open("./statistics_pT", 'w') 
     file.write("pT statistics \n")
     file.write("First quartile" + str(quart_1)+ "\n")
     file.write("Second quartile" + str(quart_2) + "\n")
@@ -187,7 +210,7 @@ def hist_start():
     y = y.flatten()
      
     #histograms with different number of bins 
-    bins =[20,500,1212]
+    bins =[100,500,1212]
     
     for i in bins:
         # Creating histogram
@@ -229,7 +252,7 @@ def hist_pT():
         plt.show()
     
     #histogram for different bins, already with zoom in of xlim=0.000001
-    bins = [10000, 100000, 500000]
+    bins = [1000, 10000, 100000]
     for i in range(len(bins)):
         #all values' counts
         fig, ax = plt.subplots(figsize=(10,10))
@@ -254,12 +277,12 @@ def hist_norm_pT():
     y = y.flatten()
     
     #normalized histograms for different bins and xlim=0.000001
-    bins = [10000, 100000, 500000]
+    bins = [1000, 10000, 100000]
     for i in range(len(bins)):
         fig, ax = plt.subplots(figsize=(10, 10))
-        sns.histplot(y, stat='probability', ax=ax, bins=bins[i])
+        sns.histplot(y, stat='probability', ax=ax, bins=bins[i],color='#1f77b4')
         plt.xlim(0,0.000001)
-        plt.title('Histogram of pT matrix magnitudes')
+        plt.title('Normalized histogram of pT matrix magnitudes')
         
         #getting the quantiles of the pT matrix
         quant_5, quant_25, quant_50, quant_75, quant_95 = np.quantile(y,0.05), np.quantile(y,0.25), np.quantile(y,0.5), np.quantile(y,0.75), np.quantile(y,0.95)
@@ -281,17 +304,15 @@ def hist_norm_start():
     y = y.flatten()
     
     #normalized histograms for different bins 
-    bins = [10000, 100000, 500000]
+    bins = [100, 500, 1212]
     for i in range(len(bins)):
         fig, ax = plt.subplots(figsize=(10, 10))
-        sns.histplot(y, stat='probability', ax=ax, bins=bins[i])
-        plt.title('Histogram of logStart matrix magnitudes')
+        sns.histplot(y, stat='probability', ax=ax, bins=bins[i], color='#1f77b4')
+        plt.xlabel('Magnitudes')
+        plt.title('Normalized histogram of logStart matrix magnitudes')
         
         #getting the quantiles of the logStart matrix
         quant_5, quant_25, quant_50, quant_75, quant_95 = np.quantile(y,0.05), np.quantile(y,0.25), np.quantile(y,0.5), np.quantile(y,0.75), np.quantile(y,0.95)
-        quants = [[quant_5,  0.46], [quant_25,  0.56], [quant_50,  0.56],  [quant_75,  0.76], [quant_95, 0.86]]
-        for i in quants:
-            ax.axvline(i[0], ymax = i[1], linestyle = ":", color="red")
 
     print(quant_5, quant_25, quant_50, quant_75, quant_95) 
 
@@ -332,13 +353,21 @@ def perturb_quartile1():
     new_values = new_values/new_values.sum()
     print ("new_values matrix" , new_values)
     print ("new_values size" , new_values.size)
+    np.savetxt("./new_values_pT",new_values)
     
     #plot and visualize the distribution of the new values that were sampled
     fig, ax = plt.subplots(figsize=(10, 10))
-    sns.histplot(new_values, stat='probability', ax=ax, bins=20000)
-    plt.title('Histogram new_values')
+    sns.histplot(new_values, stat='probability', ax=ax, bins=10000, color='#1f77b4')
+    plt.title('Histogram new values')
    
-    #start creating the new perturbed pT matrix
+    #plot and visualize the distribution of the new values that were sampled - ZOOM IN 
+    fig, ax = plt.subplots(figsize=(10, 10))
+    sns.histplot(new_values, stat='probability', ax=ax, bins=10000, color='#1f77b4')
+    plt.title('Histogram new values')
+    plt.xlim(0.00004)
+   
+    
+   #start creating the new perturbed pT matrix
     new_pT = np.copy(y)
     
     #create dictionary for array replacement 
@@ -354,25 +383,40 @@ def perturb_quartile1():
     
     #plot histogram of the new perturbed pT matrix, compare it with the original pT matrix histogram
     fig, ax = plt.subplots(figsize=(10, 10))
-    sns.histplot(new_pT, stat='probability', ax=ax, bins=10000)
-    plt.title('Histogram new perturbed pT matrix')
+    sns.histplot(new_pT, stat='probability', ax=ax, bins=10000, color='#1f77b4')
+    plt.title('Histogram new perturbed pT matrix magnitudes')
     
     #zoom in
-    fig, ax = plt.subplots(figsize=(10, 10))
-    sns.histplot(new_pT, stat='probability', ax=ax, bins=100000)
-    plt.xlim(0,0.000001)
-    plt.title('Histogram new perturbed pT matrix')
+    bins=[10000,100000]
+    for i in range(len(bins)):
+        fig, ax = plt.subplots(figsize=(10, 10))
+        sns.histplot(new_pT, stat='probability', ax=ax, bins=bins[i], color='#1f77b4')
+        plt.xlim(0,0.000001)
+        plt.title('Histogram new perturbed pT matrix magnitudes')
     
     print ("new_pT matrix",new_pT)
     print ("new_pT matrix sum",new_pT.sum())
     print ("new_pT matrix size",new_pT.size)
     
-    #repeat the process for logstart
+    file = open("./statistics_new_pT", 'w') 
+    file.write("new_pT statistics \n")
+    file.write("Maximum prob" + str(np.amax(new_pT))+ "\n")
+    file.write("Minimum prob" + str(np.amin(new_pT))+ "\n")
+    file.write("Mean" + str(np.mean(new_pT))+ "\n")
+    file.write("Median" + str(np.median(new_pT))+ "\n")
+    file.close()
+    np.savetxt("./new_pT",new_pT)
+    
+    
+    
+    
+    
+    
+    #repeat the process for logstart ########################################################################################
     print("STARTING FOR LOGSTART")
     
     #perturbing the first quartile of the log start matrix
-    lib = Library (use_hist= True)
-    y = lib.logstart
+    y = lib.logStart
     y1 = torch.exp(y)
     y = y1.numpy()
     y = y.flatten()
@@ -398,13 +442,15 @@ def perturb_quartile1():
     #normalization of the samples values - is this needed?
     new_values= np.exp(new_values)
     new_values = new_values/new_values.sum()
+    
     print ("new_values matrix" , new_values)
     print ("new_values size" , new_values.size)
+    np.savetxt("./new_values_logStart",new_values)
     
     #plot and visualize the distribution of the new values that were sampled
     fig, ax = plt.subplots(figsize=(10, 10))
-    sns.histplot(new_values, stat='probability', ax=ax, bins=20000)
-    plt.title('Histogram new_values')
+    sns.histplot(new_values, stat='probability', ax=ax, bins=370, color='#1f77b4')
+    plt.title('Histogram new values')
    
     #start creating the new perturbed logstart matrix
     new_start = np.copy(y)
@@ -422,17 +468,23 @@ def perturb_quartile1():
     
     #plot histogram of the new perturbed logstart matrix, compare it with the original logstart matrix histogram
     fig, ax = plt.subplots(figsize=(10, 10))
-    sns.histplot(new_pT, stat='probability', ax=ax, bins=10000)
-    plt.title('Histogram new perturbed pT matrix')
+    sns.histplot(new_start, stat='probability', ax=ax, bins=1212, color='#1f77b4')
+    plt.title('Histogram new perturbed logStart matrix magnitudes')
     
-    #zoom in
-    fig, ax = plt.subplots(figsize=(10, 10))
-    sns.histplot(new_pT, stat='probability', ax=ax, bins=100000)
-    plt.title('Histogram new perturbed logStart matrix')
+
     
-    print ("new_start matrix",new_pT)
-    print ("new_start matrix sum",new_pT.sum())
-    print ("new_start matrix size",new_pT.size)
+    print ("new_start matrix",new_start)
+    print ("new_start matrix sum",new_start.sum())
+    print ("new_start matrix size",new_start.size)
+    
+    file = open("./statistics_new_start", 'w') 
+    file.write("new_startstatistics \n")
+    file.write("Maximum prob" + str(np.amax(new_start))+ "\n")
+    file.write("Minimum prob" + str(np.amin(new_start))+ "\n")
+    file.write("Mean" + str(np.mean(new_start))+ "\n")
+    file.write("Median" + str(np.median(new_start))+ "\n")
+    file.close()
+    np.savetxt("./new_start",new_start)
 
 
 def perturb_quartile2():
@@ -469,11 +521,12 @@ def perturb_quartile2():
     new_values = new_values/new_values.sum()
     print ("new_values matrix" , new_values)
     print ("new_values size" , new_values.size)
+    np.savetxt("./new_values_pT",new_values)
     
     #plot and visualize the distribution of the new values that were sampled
     fig, ax = plt.subplots(figsize=(10, 10))
-    sns.histplot(new_values, stat='probability', ax=ax, bins=20000)
-    plt.title('Histogram new_values')
+    sns.histplot(new_values, stat='probability', ax=ax, bins=10000, color='#1f77b4')
+    plt.title('Histogram new values')
     
     
     #normalize new pT matrix 
@@ -492,19 +545,29 @@ def perturb_quartile2():
     
     #plot histogram of the new perturbed pT matrix, compare it with the original pT matrix histogram
     fig, ax = plt.subplots(figsize=(10, 10))
-    sns.histplot(new_pT, stat='probability', ax=ax, bins=10000)
-    plt.title('Histogram perturbed new_pT')
+    sns.histplot(new_pT, stat='probability', ax=ax, bins=10000, color='#1f77b4')
+    plt.title('Histogram perturbed new pT magnitudes')
     
     #zoom in
     fig, ax = plt.subplots(figsize=(10, 10))
-    sns.histplot(new_pT, stat='probability', ax=ax, bins=100000)
+    sns.histplot(new_pT, stat='probability', ax=ax, bins=100000, color='#1f77b4')
     plt.xlim(0,0.000001)
     
-    plt.title('Histogram perturbed new_pT')
+    plt.title('Histogram perturbed new pT matrix magnitudes')
     
     print (" new_pT matrix" , new_pT)
     print (" new_pT matrix sum" , new_pT.sum())
     print (" new_pT matrix size" , new_pT.size)
+    
+    file = open("./statistics_new_pT", 'w') 
+    file.write("new_pT statistics \n")
+    file.write("Maximum prob" + str(np.amax(new_pT))+ "\n")
+    file.write("Minimum prob" + str(np.amin(new_pT))+ "\n")
+    file.write("Mean" + str(np.mean(new_pT))+ "\n")
+    file.write("Median" + str(np.median(new_pT))+ "\n")
+    file.close()
+    np.savetxt("./new_pT",new_pT)
+    
     
     #repeat the process for the logStart matrix 
     print("STARTING FOR LOGSTART")
@@ -540,11 +603,12 @@ def perturb_quartile2():
     new_values = new_values/new_values.sum()
     print ("new_values matrix" , new_values)
     print ("new_values size" , new_values.size)
+    np.savetxt("./new_values_logStart",new_values)
     
     #plot and visualize the distribution of the new values that were sampled
     fig, ax = plt.subplots(figsize=(10, 10))
-    sns.histplot(new_values, stat='probability', ax=ax, bins=20000)
-    plt.title('Histogram new_values')
+    sns.histplot(new_values, stat='probability', ax=ax, bins=new_values.size, color='#1f77b4')
+    plt.title('Histogram new values')
     
     
     #normalize new start matrix 
@@ -563,22 +627,29 @@ def perturb_quartile2():
     
     #plot histogram of the new perturbed start matrix, compare it with the original start matrix histogram
     fig, ax = plt.subplots(figsize=(10, 10))
-    sns.histplot(new_start, stat='probability', ax=ax, bins=10000)
-    plt.title('Histogram perturbed new_start')
+    sns.histplot(new_start, stat='probability', ax=ax, bins=1212, color='#1f77b4')
+    plt.title('Histogram perturbed new logStart matrix magnitudes')
     
     #zoom in
     fig, ax = plt.subplots(figsize=(10, 10))
-    sns.histplot(new_pT, stat='probability', ax=ax, bins=100000)
+    sns.histplot(new_start, stat='probability', ax=ax, bins=1212, color='#1f77b4')
+    plt.title('Histogram perturbed new logStart matrix magnitudes')
     
+    print (" new_start matrix" , new_start)
+    print (" new_start matrix sum" , new_start.sum())
+    print (" new_start matrix size" , new_start.size)
     
-    plt.title('Histogram perturbed new_start')
-    
-    print (" new_start matrix" , new_pT)
-    print (" new_start matrix sum" , new_pT.sum())
-    print (" new_start matrix size" , new_pT.size)
+    file = open("./statistics_new_start", 'w') 
+    file.write("new_start statistics \n")
+    file.write("Maximum prob" + str(np.amax(new_start))+ "\n")
+    file.write("Minimum prob" + str(np.amin(new_start))+ "\n")
+    file.write("Mean" + str(np.mean(new_start))+ "\n")
+    file.write("Median" + str(np.median(new_start))+ "\n")
+    file.close()
+    np.savetxt("./new_start",new_start)
 
 def perturb_flattening():
-    #perturb_flattening will reeplace the first quartile values with the magnitues that are represented in the 4th quartile
+    #perturb_flattening will reeplace the between first and fourth quartile values with the magnitues that are represented in the 4th quartile
     #the goal is to grow the number of entries in the pT matrix with higher probabilities (which are the probs in the 4th quartile)
     #logT matrix
     lib = Library (use_hist= True)
@@ -603,19 +674,22 @@ def perturb_flattening():
     print(probs2)
     
     
-    #0.8 of the values between q1 and q3, number of values we want to change
-    q_values = (y >= q1) & (y <= q3)
+    #0.8 of the values between q1 and q4, number of values we want to change
+    q_values = (y >= q1) & (y <= q4)
     q_values = q_values.nonzero()[0]
     q_values = q_values [:int(q_values.size*0.8)]
     print(q_values.size)
     
     new_values = np.random.choice(probs1, size= int(q_values.size))
     print(new_values.size)
+    np.savetxt("./new_values_pT",new_values)
     
     #plot and visualize the distribution of the new values that were sampled
     fig, ax = plt.subplots(figsize=(10, 10))
-    sns.histplot(new_values, stat='probability', ax=ax, bins=20000)
-    plt.title('Histogram new_values')
+    sns.histplot(new_values, stat='probability', ax=ax, bins=10000, color='#1f77b4')
+    plt.title('Histogram new values')
+    plt.ylim(0,0.04)
+    plt.xlim(0,0.00004)
     
     
     #new_pT matrix
@@ -639,10 +713,27 @@ def perturb_flattening():
     
     #plot histogram of new pT_matrix
     fig, ax = plt.subplots(figsize=(10, 10))
-    sns.histplot(new_pT, stat='probability', ax=ax, bins=100000)
-    plt.title('Histogram new_pT')
+    sns.histplot(new_pT, stat='probability', ax=ax, bins=10000, color='#1f77b4')
+    plt.title('Histogram perturbed new pT matrix magnitudes')
+    
+    #zoom in
+    fig, ax = plt.subplots(figsize=(10, 10))
+    sns.histplot(new_pT, stat='probability', ax=ax, bins=100000, color='#1f77b4')
+    plt.title('Histogram perturbed new pT matrix magnitude')
+    plt.xlim(0,0.000001)
    
-    print("STARTING FOR LOGSTART")
+    file = open("./statistics_new_pT", 'w') 
+    file.write("new_pT statistics \n")
+    file.write("Maximum prob" + str(np.amax(new_pT))+ "\n")
+    file.write("Minimum prob" + str(np.amin(new_pT))+ "\n")
+    file.write("Mean" + str(np.mean(new_pT))+ "\n")
+    file.write("Median" + str(np.median(new_pT))+ "\n")
+    file.close()
+    np.savetxt("./new_pT",new_pT)
+   
+    
+   
+    print("STARTING FOR LOGSTART") ######################################################################
     
     #logstart matrix
     lib = Library (use_hist= True)
@@ -650,8 +741,7 @@ def perturb_flattening():
     y1 = torch.exp(y)
     y = y1.numpy()
     y = y.flatten()
-    print(torch.max(y1))
-    print(torch.mean(y1))
+    
    
     #quantiles 
     q1 = np.quantile(y,0.25)
@@ -666,19 +756,20 @@ def perturb_flattening():
     print(probs2)
     
     
-    #0.8 of the values between q1 and q3, number of values we want to change
-    q_values = (y >= q1) & (y <= q3)
+    #0.8 of the values between q1 and q4, number of values we want to change
+    q_values = (y >= q1) & (y <= q4)
     q_values = q_values.nonzero()[0]
     q_values = q_values [:int(q_values.size*0.8)]
     print(q_values.size)
     
     new_values = np.random.choice(probs1, size= int(q_values.size))
     print(new_values.size)
+    np.savetxt("./new_values_logStart",new_values)
     
     #plot and visualize the distribution of the new values that were sampled
     fig, ax = plt.subplots(figsize=(10, 10))
-    sns.histplot(new_values, stat='probability', ax=ax, bins=20000)
-    plt.title('Histogram new_values')
+    sns.histplot(new_values, stat='probability', ax=ax, bins= new_values.size, color='#1f77b4')
+    plt.title('Histogram new values')
     
     
     #new_start matrix
@@ -702,9 +793,17 @@ def perturb_flattening():
     
     #plot histogram of new start_matrix
     fig, ax = plt.subplots(figsize=(10, 10))
-    sns.histplot(new_start, stat='probability', ax=ax, bins=100000)
-    plt.title('Histogram new_start')
+    sns.histplot(new_start, stat='probability', ax=ax, bins=1212, color='#1f77b4')
+    plt.title('Histogram perturbed new logStart matrix magnitudes')
     
+    file = open("./statistics_new_start", 'w') 
+    file.write("new_start statistics \n")
+    file.write("Maximum prob" + str(np.amax(new_start))+ "\n")
+    file.write("Minimum prob" + str(np.amin(new_start))+ "\n")
+    file.write("Mean" + str(np.mean(new_start))+ "\n")
+    file.write("Median" + str(np.median(new_start))+ "\n")
+    file.close()
+    np.savetxt("./new_start",new_start)
      
 def perturb_less_mean():
     #perturb_less_mean gets the entries that have values that are lower than the mean and replaces these values
@@ -721,22 +820,22 @@ def perturb_less_mean():
     #getting the max and min of pT
     maxi = torch.max(y1).item()
     mean = torch.mean(y1).item()
-    print(mean)
+    
     
     #entries of pT matrix that have values lower than the mean
     less_mean = y < mean 
     less_mean = less_mean.nonzero()[0]
-    print(less_mean.size)
+    
     
     #new values sampled from a uniform distribution 
-    values = np.random.uniform(low=mean, high=maxi, size=(less_mean.size,))
+    values = np.random.uniform(low=mean, high=maxi, size=(less_mean.size))
     new_values = np.random.choice(values, size= less_mean.size)
-    print(new_values)
+    np.savetxt("./new_values_pT",new_values)
     
     #new values plot
     fig, ax = plt.subplots(figsize=(10, 10))
-    sns.histplot(new_values, stat='probability', ax=ax, bins=20000)
-    plt.title('Histogram new_values')
+    sns.histplot(new_values, stat='probability', ax=ax, bins=10000, color='#1f77b4')
+    plt.title('Histogram new values')
     
     #perturbing pT matrix and getting a new pT matrix
     new_pT = np.copy(y)
@@ -748,50 +847,69 @@ def perturb_less_mean():
     #replace values
     for k, v in dic.items(): new_pT[k] = v 
     
-    print(new_pT.sum())
-    print(new_pT)
-    
+
     #normalize new pT matrix 
     new_pT= new_pT/new_pT.sum()
     
     print(new_pT.sum())
-    print(new_pT)
+    print("DONE")
     
     #plotting new_pT 
     fig, ax = plt.subplots(figsize=(10, 10))
-    sns.histplot(new_pT, stat='probability', ax=ax, bins=10000)
-    plt.title('Histogram new_pT')
+    sns.histplot(new_pT, stat='probability', ax=ax, bins=10000, color='#1f77b4')
+    plt.title('Histogram new perturbed pT matrix magnitudes')
+    plt.ylim(0,0.002)
     
-    print("STARTING FOR LOGSTART")
+    #zoom in 
+    fig, ax = plt.subplots(figsize=(10, 10))
+    sns.histplot(new_pT, stat='probability', ax=ax, bins=100000, color='#1f77b4')
+    plt.title('Histogram new perturbed pT matrix magnitudes')
+    plt.ylim(0,0.0002)
+   
+    
+    file = open("./statistics_new_pT", 'w') 
+    file.write("new_pT statistics \n")
+    file.write("Maximum prob" + str(np.amax(new_pT))+ "\n")
+    file.write("Minimum prob" + str(np.amin(new_pT))+ "\n")
+    file.write("Mean" + str(np.mean(new_pT))+ "\n")
+    file.write("Median" + str(np.median(new_pT))+ "\n")
+    file.close()
+    np.savetxt("./new_pT",new_pT)
+    print("DONE2")
+    
+    
+    
+    print("STARTING FOR LOGSTART")######################################################################################
     
     #logStart matrix
     lib = Library (use_hist= True)
     y = lib.logStart
-    y = torch.exp(y)
+    y1 = torch.exp(y)
     y = y1.numpy()
     y = y.flatten()
     
     #getting the max and min of Start
     maxi = torch.max(y1).item()
     mean = torch.mean(y1).item()
-    print(mean)
+    
     
     #entries of start matrix that have values lower than the mean
     less_mean = y < mean 
     less_mean = less_mean.nonzero()[0]
     print(less_mean.size)
+   
     
     #new values sampled from a uniform distribution 
-    values = np.random.uniform(low=mean, high=maxi, size=(less_mean.size,))
+    values = np.random.uniform(low=mean, high=maxi, size=(less_mean.size))
     new_values = np.random.choice(values, size= less_mean.size)
-    print(new_values)
+    np.savetxt("./new_values_logStart",new_values)
     
     #new values plot
     fig, ax = plt.subplots(figsize=(10, 10))
-    sns.histplot(new_values, stat='probability', ax=ax, bins=20000)
+    sns.histplot(new_values, stat='probability', ax=ax, bins= new_values.size, color='#1f77b4')
     plt.title('Histogram new_values')
     
-    #perturbing start matrix and getting a new pT matrix
+    #perturbing start matrix and getting a new logStart matrix
     new_start = np.copy(y)
     
     dic = {}
@@ -800,20 +918,28 @@ def perturb_less_mean():
     
     #replace values
     for k, v in dic.items(): new_start[k] = v 
-    
-    print(new_start.sum())
-    print(new_start)
-    
+
     #normalize new start matrix 
     new_start= new_start/new_start.sum()
     
     print(new_start.sum())
-    print(new_start)
+    print("DONE3")
     
     #plotting new_start
     fig, ax = plt.subplots(figsize=(10, 10))
-    sns.histplot(new_start, stat='probability', ax=ax, bins=10000)
-    plt.title('Histogram new_start')
+    sns.histplot(new_start, stat='probability', ax=ax, bins= 1212, color='#1f77b4')
+    plt.title('Histogram new perturbed logStart matrix magnitudes')
+    
+    file = open("./statistics_new_start", 'w') 
+    file.write("new_start statistics \n")
+    file.write("Maximum prob" + str(np.amax(new_start))+ "\n")
+    file.write("Minimum prob" + str(np.amin(new_start))+ "\n")
+    file.write("Mean" + str(np.mean(new_start))+ "\n")
+    file.write("Median" + str(np.median(new_start))+ "\n")
+    file.close()
+    np.savetxt("./new_start",new_start)
+    
+    print("DONE4")
     
    
     
@@ -846,7 +972,7 @@ def perturb_more_mean():
     
     #plotting new values
     fig, ax = plt.subplots(figsize=(10, 10))
-    sns.histplot(new_values, stat='probability', ax=ax, bins=20000)
+    sns.histplot(new_values, stat='probability', ax=ax, bins=20000, color='#1f77b4')
     plt.title('Histogram new_values')
     
     #perturbing pT
@@ -870,7 +996,7 @@ def perturb_more_mean():
     
     #plotting new pT
     fig, ax = plt.subplots(figsize=(10, 10))
-    sns.histplot(new_pT, stat='probability', ax=ax, bins=100)
+    sns.histplot(new_pT, stat='probability', ax=ax, bins=100, color='#1f77b4')
     plt.title('Histogram new_pT')
     #plt.ylim(0,0.002)
     
@@ -898,7 +1024,7 @@ def perturb_more_mean():
     
     #plotting new values
     fig, ax = plt.subplots(figsize=(10, 10))
-    sns.histplot(new_values, stat='probability', ax=ax, bins=20000)
+    sns.histplot(new_values, stat='probability', ax=ax, bins=20000, color='#1f77b4')
     plt.title('Histogram new_values')
     
     #perturbing logstart
@@ -922,7 +1048,7 @@ def perturb_more_mean():
     
     #plotting new start
     fig, ax = plt.subplots(figsize=(10, 10))
-    sns.histplot(new_start, stat='probability', ax=ax, bins=100)
+    sns.histplot(new_start, stat='probability', ax=ax, bins=100, color='#1f77b4')
     plt.title('Histogram new_start')
    
 
@@ -953,15 +1079,24 @@ def perturb_zero():
     
     #plotting new pt
     fig, ax = plt.subplots(figsize=(10, 10))
-    sns.histplot(new_pT, stat='probability', ax=ax, bins=10000)
-    plt.title('Histogram new_pT')
-    plt.ylim(0,0.003)
-    plt.xlim(0,  0.00002)
+    sns.histplot(new_pT, stat='probability', ax=ax, bins=100000, color='#1f77b4')
+    plt.title('Histogram new perturbed pT matrix magnitudes')
+    plt.xlim(0,0.00001)
     
-    print("STARTING FOR LOGSTART")
     
-    lib = Library (use_hist= True)
-    y = lib.logT
+    file = open("./statistics_new_pT", 'w') 
+    file.write("new_pT statistics \n")
+    file.write("Maximum prob" + str(np.amax(new_pT))+ "\n")
+    file.write("Minimum prob" + str(np.amin(new_pT))+ "\n")
+    file.write("Mean" + str(np.mean(new_pT))+ "\n")
+    file.write("Median" + str(np.median(new_pT))+ "\n")
+    file.close()
+    np.savetxt("./new_pT",new_pT)
+    
+    print("STARTING FOR LOGSTART")#################################################################
+    
+   
+    y = lib.logStart
     y1 = torch.exp(y)
     y = y1.numpy()
     y = y.flatten()
@@ -982,14 +1117,103 @@ def perturb_zero():
     
     #plotting new start
     fig, ax = plt.subplots(figsize=(10, 10))
-    sns.histplot(new_start, stat='probability', ax=ax, bins=10000)
-    plt.title('Histogram new_start')
+    sns.histplot(new_start, stat='probability', ax=ax, bins=1212, color='#1f77b4')
+    plt.title('Histogram new logStart matrix magnitudes')
+    #plt.xlim(0,0.0000001)
+    
+    file = open("./statistics_new_start", 'w') 
+    file.write("new_start statistics \n")
+    file.write("Maximum prob" + str(np.amax(new_start))+ "\n")
+    file.write("Minimum prob" + str(np.amin(new_start))+ "\n")
+    file.write("Mean" + str(np.mean(new_start))+ "\n")
+    file.write("Median" + str(np.median(new_start))+ "\n")
+    file.close()
+    np.savetxt("./new_start",new_start)
    
     
         
     
     
+def perturb_specific():
+    #perturb specific will transform the quantile 1 values in higher values (the ones that are closer to zero and that are less probable to happen)
+    #and transform the other values to zero - this way the transitions that weree most probable to happen before won't happen (will have zero prob
+    #of happening) while the transitions that were less probable to happen will happeen 
     
+    
+    lib = Library (use_hist= True)
+    y = lib.logT
+    y = torch.exp(y)
+    y1 = (y/torch.sum(y))
+    y = y1.numpy()
+    y = y.flatten()
+    q1 = np.quantile(y,0.25)
+    q_values = y >= q1
+    q_values = q_values.nonzero()[0]
+    
+    #creating new pT
+    new_pT = np.copy(y)
+    
+    for i in q_values:
+        new_pT[i] = 0
+    
+    #normalize new pT matrix 
+    new_pT = new_pT/new_pT.sum()
+    
+    print(new_pT.sum())
+    print(new_pT)
+    
+    #plotting new pt
+    fig, ax = plt.subplots(figsize=(10, 10))
+    sns.histplot(new_pT, stat='probability', ax=ax, bins=100, color='#1f77b4')
+    plt.title('Histogram new perturbed pT matrix magnitudes')
+    
+    
+    
+    file = open("./statistics_new_pT", 'w') 
+    file.write("new_pT statistics \n")
+    file.write("Maximum prob" + str(np.amax(new_pT))+ "\n")
+    file.write("Minimum prob" + str(np.amin(new_pT))+ "\n")
+    file.write("Mean" + str(np.mean(new_pT))+ "\n")
+    file.write("Median" + str(np.median(new_pT))+ "\n")
+    file.close()
+    np.savetxt("./new_pT",new_pT)
+    
+    print("STARTING FOR LOGSTART")######################################################################
+    
+    
+    y = lib.logStart
+    y1 = torch.exp(y)
+    y = y1.numpy()
+    y = y.flatten()
+    q1 = np.quantile(y,0.25)
+    q_values = y >= q1
+    q_values = q_values.nonzero()[0]
+    
+    new_start = np.copy(y)
+    
+    for i in q_values:
+        new_start[i] = 0
+    
+    #normalize new start matrix 
+    new_start= new_start/new_start.sum()
+    
+    print(new_start.sum())
+    print(new_start)
+    
+    #plotting new start
+    fig, ax = plt.subplots(figsize=(10, 10))
+    sns.histplot(new_start, stat='probability', ax=ax, bins=100, color='#1f77b4')
+    plt.title('Histogram new logStart matrix magnitudes')
+    #plt.xlim(0,0.01)
+    
+    file = open("./statistics_new_start", 'w') 
+    file.write("new_start statistics \n")
+    file.write("Maximum prob" + str(np.amax(new_start))+ "\n")
+    file.write("Minimum prob" + str(np.amin(new_start))+ "\n")
+    file.write("Mean" + str(np.mean(new_start))+ "\n")
+    file.write("Median" + str(np.median(new_start))+ "\n")
+    file.close()
+    np.savetxt("./new_start",new_start)
     
     
     
