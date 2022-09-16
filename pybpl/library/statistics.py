@@ -648,9 +648,8 @@ def perturb_quartile2():
     file.close()
     np.savetxt("./new_start",new_start)
 
-def perturb_flattening():
-    #perturb_flattening will reeplace the between first and fourth quartile values with the magnitues that are represented in the 4th quartile
-    #the goal is to grow the number of entries in the pT matrix with higher probabilities (which are the probs in the 4th quartile)
+def perturb_q4():
+    #perturb_q4 will reeplace the between first and fourth quartile values with the magnitues that are represented in between the 4th and 5th quantile
     #logT matrix
     lib = Library (use_hist= True)
     y = lib.logT
@@ -699,7 +698,7 @@ def perturb_flattening():
     for i in range(len(q_values)):
         dic[q_values[i]]= new_values[i]
     
-    #change 80% of the values between quantile 1 and 3 in the new pT matrix 
+    #change 80% of the values between quantile 1 and 4 in the new pT matrix 
     for k, v in dic.items(): new_pT[k] = v
     
     
@@ -805,8 +804,8 @@ def perturb_flattening():
     file.close()
     np.savetxt("./new_start",new_start)
      
-def perturb_less_mean():
-    #perturb_less_mean gets the entries that have values that are lower than the mean and replaces these values
+def perturb_flatenning():
+    #perturb_flatenning gets the entries that have values that are lower than the mean and replaces these values
     #by values that are randomly sampled froma uniform distribution between the mean and the max of pT
     
     #logT matrix
@@ -1081,7 +1080,7 @@ def perturb_zero():
     fig, ax = plt.subplots(figsize=(10, 10))
     sns.histplot(new_pT, stat='probability', ax=ax, bins=100000, color='#1f77b4')
     plt.title('Histogram new perturbed pT matrix magnitudes')
-    plt.xlim(0,0.00001)
+    plt.xlim(0,0.000002)
     
     
     file = open("./statistics_new_pT", 'w') 
@@ -1135,8 +1134,8 @@ def perturb_zero():
     
     
 def perturb_specific():
-    #perturb specific will transform the quantile 1 values in higher values (the ones that are closer to zero and that are less probable to happen)
-    #and transform the other values to zero - this way the transitions that weree most probable to happen before won't happen (will have zero prob
+    #perturb specific will transform the quantile 1 values in higher values (the ones that are closer to zero and that correpond to the  
+    #primitive's transitions that are less probable to happen) and transform the other values to zero - this way the transitions that weree most probable to happen before won't happen (will have zero prob
     #of happening) while the transitions that were less probable to happen will happeen 
     
     
@@ -1214,11 +1213,301 @@ def perturb_specific():
     file.write("Median" + str(np.median(new_start))+ "\n")
     file.close()
     np.savetxt("./new_start",new_start)
+
+
+def perturbing_specific2():
+    #perturb specific will turn every transition probability to zero except for the first three
+    lib = Library (use_hist= True)
+    y = lib.logT
+    y = torch.exp(y)
+    y1 = (y/torch.sum(y))
+    y = y1.numpy()
+    y = y.flatten()
+    
+    new_pT = np.copy(y)
+    
+    for i in range(3,len(y)):
+        new_pT[i] = 0
+
+    #normalize new pT matrix 
+    new_pT = new_pT/new_pT.sum()
+    
+    print(new_pT.sum())
+    print(new_pT)
+    
+    #plotting new pt
+    fig, ax = plt.subplots(figsize=(10, 10))
+    sns.histplot(new_pT, stat='probability', ax=ax, bins=100, color='#1f77b4')
+    plt.title('Histogram new perturbed pT matrix magnitudes')
+    
+    
+    
+    file = open("./statistics_new_pT", 'w') 
+    file.write("new_pT statistics \n")
+    file.write("Maximum prob" + str(np.amax(new_pT))+ "\n")
+    file.write("Minimum prob" + str(np.amin(new_pT))+ "\n")
+    file.write("Mean" + str(np.mean(new_pT))+ "\n")
+    file.write("Median" + str(np.median(new_pT))+ "\n")
+    file.close()
+    np.savetxt("./new_pT",new_pT)
+    
+    print("STARTING FOR LOGSTART")######################################################################
+    
+    y = lib.logStart
+    y1 = torch.exp(y)
+    y = y1.numpy()
+    y = y.flatten()
+
+    
+    new_start = np.copy(y)
+   
+    for i in range(3,len(y)):
+        new_start[i] = 0
+    
+    #normalize new start matrix 
+    new_start= new_start/new_start.sum()
+    
+    print(new_start.sum())
+    print(new_start)
+    
+    #plotting new start
+    fig, ax = plt.subplots(figsize=(10, 10))
+    sns.histplot(new_start, stat='probability', ax=ax, bins=100, color='#1f77b4')
+    plt.title('Histogram new logStart matrix magnitudes')
+    #plt.xlim(0,0.01)
+    
+    file = open("./statistics_new_start", 'w') 
+    file.write("new_start statistics \n")
+    file.write("Maximum prob" + str(np.amax(new_start))+ "\n")
+    file.write("Minimum prob" + str(np.amin(new_start))+ "\n")
+    file.write("Mean" + str(np.mean(new_start))+ "\n")
+    file.write("Median" + str(np.median(new_start))+ "\n")
+    file.close()
+    np.savetxt("./new_start",new_start)
+
+    
+def final_plots_pT():
+    
+    #plotting histogram of transitions x probabilities for the original pT and perturbed pTs
+    
+    
+    x = np.linspace(1, 1212*1212, 1212*1212)
+    
+    #original pT
+    lib = Library (use_hist= True)
+    y= lib.logT
+    y = torch.exp(y)
+    y1 =(y/torch.sum(y))
+    y = y1.numpy()
+    y = y.flatten()
+    
+    f, ax = plt.subplots(figsize=(10,10))
+    plt.scatter (x,y, s =1)
+    plt.plot(x,y, label= "Original pT matrix")
+    ax.set_ylim(ymin=0)
+    ax.set_xlim(xmin=0)
+    plt.legend()
+    plt.xlabel('Transitions')
+    plt.ylabel('Probability')
+    plt.title('Probability distribution of transitions between primitives')
+    plt.show()
+    
+    
+    #new pT perturb quartile 1
+    new_pT1 = np.loadtxt("./perturbations/Perturb_quartile1/pT/new_pT", delimiter ="\n")
+    f, ax = plt.subplots(figsize=(10,10))
+    plt.scatter (x,new_pT1, s =1)
+    plt.plot(x,new_pT1, color="b", label="Perturbed pT matrix (quartile 1)")
+    ax.set_ylim(ymin=0)
+    ax.set_xlim(xmin=0)
+    plt.legend()
+    plt.xlabel('Transitions')
+    plt.ylabel('Probability')
+    plt.title('Probability distribution of transitions between primitives')
+    plt.show()
+    
+    
+    #new pT perturb quartile 2
+    new_pT2 = np.loadtxt("./perturbations/Perturb_quartile2/pT/new_pT", delimiter ="\n")
+    f, ax = plt.subplots(figsize=(10,10))
+    plt.scatter (x,new_pT2, s =1)
+    plt.plot(x,new_pT2, color ="g", label= "Perturbed pT matrix (quartile 2)")
+    ax.set_ylim(ymin=0)
+    ax.set_xlim(xmin=0)
+    plt.legend()
+    plt.xlabel('Transitions')
+    plt.ylabel('Probability')
+    plt.title('Probability distribution of transitions between primitives')
+    plt.show()
+    
+    #new pT perturb q4
+    new_pT3 = np.loadtxt("./perturbations/Perturb_q4/pT/new_pT", delimiter ="\n")
+    f, ax = plt.subplots(figsize=(10,10))
+    plt.scatter (x,new_pT3, s =1)
+    plt.plot(x,new_pT3, color="c", label = "Perturbed pT matrix (q4)")
+    ax.set_ylim(ymin=0)
+    ax.set_xlim(xmin=0)
+    plt.legend()
+    plt.xlabel('Transitions')
+    plt.ylabel('Probability')
+    plt.title('Probability distribution of transitions between primitives')
+    plt.show()
+    
+    #new pT perturb flatenning
+    new_pT4 = np.loadtxt("./perturbations/Perturb_flatenning/pT/new_pT", delimiter ="\n")
+    f, ax = plt.subplots(figsize=(10,10))
+    plt.scatter (x,new_pT4, s =1)
+    plt.plot(x,new_pT4, color="y", label = "Perturbed pT matrix (flatenning)")
+    ax.set_ylim(ymin=0)
+    ax.set_xlim(xmin=0)
+    plt.legend()
+    plt.xlabel('Transitions')
+    plt.ylabel('Probability')
+    plt.title('Probability distribution of transitions between primitives')
+    plt.show()
+    
+    #new pT perturb zero
+    new_pT5 = np.loadtxt("./perturbations/Perturb_zero/pT/new_pT", delimiter ="\n")
+    f, ax = plt.subplots(figsize=(10,10))
+    plt.scatter (x,new_pT5, s =1)
+    plt.plot(x,new_pT5, color ="k", label = "Perturbed pT matrix (perturb zero)")
+    ax.set_ylim(ymin=0)
+    ax.set_xlim(xmin=0)
+    plt.legend()
+    plt.xlabel('Transitions')
+    plt.ylabel('Probability')
+    plt.title('Probability distribution of transitions between primitives')
+    plt.show()
+    
+    #new pT specific 
+    new_pT6 = np.loadtxt("./perturbations/Perturb_specific/pT/new_pT", delimiter ="\n")
+    f, ax = plt.subplots(figsize=(10,10))
+    plt.scatter (x,new_pT6, s =1)
+    plt.plot(x,new_pT6, color="m", label = "Perturbed pT matrix (specific)")
+    ax.set_ylim(ymin=0)
+    ax.set_xlim(xmin=0)
+    plt.legend()
+    plt.xlabel('Transitions')
+    plt.ylabel('Probability')
+    plt.title('Probability distribution of transitions between primitives')
+    plt.show()
+    
+    #new pT specific 2 
+    new_pT7 = np.loadtxt("./perturbations/Perturb_specific2/pT/new_pT", delimiter ="\n")
+    f, ax = plt.subplots(figsize=(10,10))
+    plt.scatter (x,new_pT7, s =1)
+    plt.plot(x,new_pT7, color="r", label = "Perturbed pT matrix (specific2)")
+    ax.set_ylim(ymin=0)
+    ax.set_xlim(xmin=0)
+    plt.legend()
+    plt.xlabel('Transitions')
+    plt.ylabel('Probability')
+    plt.title('Probability distribution of transitions between primitives')
+    plt.show()
     
     
     
     
+def final_plots_logStart():
     
+    #original logstart
+    lib = Library (use_hist= True)
+    x = np.linspace(1, 1212, 1212)
+    y= lib.logStart
+    y1 = torch.exp(y)
+    y = y1.numpy()
+    plt.figure(figsize=(10,10))
+    plt.bar(x,y)
+    plt.xlabel('Transitions')
+    plt.ylabel('Probability')
+    plt.title('Probability distribution of start primitives')
+    plt.xlim(0,1212)
+    plt.show()
+    
+    #new start perturb quartile 1
+    new_start1 = np.loadtxt("./perturbations/Perturb_quartile1/logStart/new_start", delimiter ="\n")
+    f, ax = plt.subplots(figsize=(10,10))
+    plt.bar(x,new_start1, color="b", label="Perturbed logStart matrix (quartile 1)")
+    ax.set_ylim(ymin=0)
+    ax.set_xlim(xmin=0)
+    plt.legend()
+    plt.xlabel('Transitions')
+    plt.ylabel('Probability')
+    plt.title('Probability distribution of starting primitives')
+    plt.show()
+    
+    
+    #new start perturb quartile 2
+    new_start2 = np.loadtxt("./perturbations/Perturb_quartile2/logStart/new_start", delimiter ="\n")
+    f, ax = plt.subplots(figsize=(10,10))
+    plt.bar(x,new_start2, color ="g", label= "Perturbed logStart matrix (quartile 2)")
+    ax.set_ylim(ymin=0)
+    ax.set_xlim(xmin=0)
+    plt.legend()
+    plt.xlabel('Transitions')
+    plt.ylabel('Probability')
+    plt.title('Probability distribution of starting primitives')
+    plt.show()
+    
+    #new start perturb q4
+    new_start3 = np.loadtxt("./perturbations/Perturb_q4/logstart/new_start", delimiter ="\n")
+    f, ax = plt.subplots(figsize=(10,10))
+    plt.bar(x,new_start3, color="c", label = "Perturbed logStart matrix (q4)")
+    ax.set_ylim(ymin=0)
+    ax.set_xlim(xmin=0)
+    plt.legend()
+    plt.xlabel('Transitions')
+    plt.ylabel('Probability')
+    plt.title('Probability distribution of starting primitives')
+    plt.show()
+    
+    #new start perturb flatenning 
+    new_start4 = np.loadtxt("./perturbations/Perturb_flatenning/logStart/new_start", delimiter ="\n")
+    f, ax = plt.subplots(figsize=(10,10))
+    plt.bar(x,new_start4, color="y", label = "Perturbed logStart matrix (flatenning)")
+    ax.set_ylim(ymin=0)
+    ax.set_xlim(xmin=0)
+    plt.legend()
+    plt.xlabel('Transitions')
+    plt.ylabel('Probability')
+    plt.title('Probability distribution of starting primitives')
+    plt.show()
+    
+    #new start perturb zero
+    new_start5 = np.loadtxt("./perturbations/Perturb_zero/logStart/new_start", delimiter ="\n")
+    f, ax = plt.subplots(figsize=(10,10))
+    plt.bar(x,new_start5, color ="k", label = "Perturbed logStart matrix (perturb zero)")
+    ax.set_ylim(ymin=0)
+    ax.set_xlim(xmin=0)
+    plt.legend()
+    plt.xlabel('Transitions')
+    plt.ylabel('Probability')
+    plt.title('Probability distribution of starting primitives')
+    plt.show()
+    
+    #new start specific 
+    new_start6 = np.loadtxt("./perturbations/Perturb_specific/logStart/new_start", delimiter ="\n")
+    f, ax = plt.subplots(figsize=(10,10))
+    plt.bar(x,new_start6, color="m", label = "Perturbed logStart matrix (specific)")
+    ax.set_ylim(ymin=0)
+    ax.set_xlim(xmin=0)
+    plt.legend()
+    plt.xlabel('Transitions')
+    plt.ylabel('Probability')
+    plt.title('Probability distribution of starting primitives')
+    plt.show()
+    
+    #new start specific 2
+    new_start7 = np.loadtxt("./perturbations/Perturb_specific2/logStart/new_start", delimiter ="\n")
+    f, ax = plt.subplots(figsize=(10,10))
+    plt.bar(x,new_start7, color="r", label = "Perturbed logStart matrix (specific2)")
+    ax.set_ylim(ymin=0)
+    ax.set_xlim(xmin=0)
+    plt.legend()
+    plt.xlabel('Transitions')
+    plt.ylabel('Probability')
+    plt.title('Probability distribution of starting primitives')
+    plt.show()
     
     
     
