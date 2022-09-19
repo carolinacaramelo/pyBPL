@@ -38,6 +38,7 @@ def optimize_type(model, c, lr, nb_iter, eps, show_examples=True):
     c.train()
     params = c.parameters()
     lbs = c.lbs(eps)
+    print(lbs)
     ubs = c.ubs(eps)
     # optimize the character type
     score_list = []
@@ -75,9 +76,9 @@ def optimize_type(model, c, lr, nb_iter, eps, show_examples=True):
         # project all parameters into allowable range
         with torch.no_grad():
             for param, lb, ub in zip(params, lbs, ubs):
-                if lb is not None:
+                if torch.is_tensor(lb): #changed condition
                     torch.max(param, lb, out=param)
-                if ub is not None:
+                if torch.is_tensor(ub): #changed condition
                     torch.min(param, ub, out=param)
 
     return score_list

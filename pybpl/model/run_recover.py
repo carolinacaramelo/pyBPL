@@ -42,7 +42,7 @@ eng.addpath(os.path.dirname(__file__), nargout=0)
 
 def pre_recover():
     model = Perturbing ()
-    model.test_dataset(3,1,0,False)
+    model.test_dataset(2,1,0,False)
     im = Image.open("./original.png")
     process_image(im, 0)
     
@@ -150,8 +150,7 @@ def main():
                 f.write("pos_token_1{}".format(model.pos_token))
                 f.write("eval_spot_token_1{}".format(model.eval_spot_token))
             
-    
-            
+
             #generate image
             c_type = model.known_stype_recover(False)
             c_token = model.model_sample_token_recover(c_type)
@@ -192,8 +191,9 @@ def main():
             
 
         x = np.linspace(0,iteration,iteration+1).tolist()       
-           
-        plt.bar(x, err_list1, align="center")
+        
+        plt.figure(figsize=(10,10))   
+        plt.bar(x, err_list1)
         plt.title('SSIM Original image VS. images recovered with inference')
         plt.xticks(np.arange(0, iteration, 1))
         plt.yticks(np.arange(0, 1, 0.05))
@@ -201,7 +201,8 @@ def main():
         plt.ylabel('SSIM')
         plt.show()
         
-        plt.bar(x, err_list2, align = "center")
+        plt.figure(figsize=(10,10))
+        plt.bar(x, err_list2)
         plt.title('MSE Original image VS. images recovered with inference')
         plt.xticks(np.arange(0, iteration, 1))
         plt.yticks(np.arange(0, 1000, 100))
@@ -209,7 +210,8 @@ def main():
         plt.ylabel('MSE')
         plt.show()
         
-        plt.bar(x, err_list3, align = "center")
+        plt.figure(figsize=(10,10))
+        plt.bar(x, err_list3)
         plt.title('RMSE Original image VS. images recovered with inference')
         plt.xticks(np.arange(0, iteration, 1))
         plt.yticks(np.arange(0, 50, 10))

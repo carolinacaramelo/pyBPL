@@ -32,9 +32,9 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         # Generative process relevant variables 
         #dcan be previously defined 
         #self.ids = torch.tensor([1]) # ids of the substrokes
-        self.n_strokes = 7 # number of strokes, it has to be <=10
+        self.n_strokes = torch.tensor(7) # number of strokes, it has to be <=10
         self.subparts = [30,300,45,70,89] #possible ids to use when sampling the id list 
-        self.nsub = torch.tensor ([1]) #number of subparts its also <=10, in the normal case it depends on n_strokes
+        self.nsub = [torch.tensor (1)] #number of subparts its also <=10, in the normal case it depends on n_strokes
         self.R = []
         self.P = []
         self.seq_ids = [[]]
@@ -73,8 +73,6 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         nsub = self.nsub
         # sample the sequence of sub-stroke IDs
         self.sample_ids(perturbed)
-        
-    
 
         # sample control points for each sub-stroke in the sequence
         shapes = self.STD.sample_shapes_type(self.ids)
@@ -93,10 +91,12 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         self.R = []
         self.P = []
         # for each part, sample part parameters
-        for _ in range(self.n_strokes):
+        nsub = self.nsub.copy()
+        for i in range(self.n_strokes):
+            self.nsub = nsub[i]
             # sample the relation type
-            r = self.CTD.rdist.sample_relation_type(self.P)
             p= self.get_part_type(perturbed)
+            r = self.CTD.rdist.sample_relation_type(self.P)
             # append to the lists
             self.R.append(r)
             self.P.append (p)
@@ -111,81 +111,77 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         self.known_sample_type(perturbed)
         print(self.R, self.P)
         CT = ConceptType(self.n_strokes, self.P, self.R)
-       
-        #c = super(CharacterTypeDist, self).sample_type(self.n_strokes)
-        #ctype = CharacterType(c.k, c.part_types, c.relation_types)
 
         return CharacterType(self.n_strokes, CT.part_types, CT.relation_types)
     
     
-    #aaltered function from CharacterModel class, sampling the character type of the image (model) that will be generated
+    #altered function from CharacterModel class, sampling the character type of the image (model) that will be generated
     def known_stype(self, perturbed):
          return self.known_ctype(perturbed)
-     
-        
-   # def display_type(self,c_type):
-       # print('----BEGIN CHARACTER TYPE INFO----')
-       # print('num strokes: %i' % self.n_strokes)
-       # for i in range(self.n_strokes):
-           # print('Stroke #%i:' % i)
-           # print('\tsub-stroke ids: ', list(self.ids)
-            #print('\trelation category: %s' % self.RTD.relation_types[i].category)
-        #print('----END CHARACTER TYPE INFO----')
-     
+
    
 #### PERTURBED SAMPLING #############################################################################################################
+    
+    #subparts are the available ids, nsub are the number of ids we want to sample (the number of subparts in the id list sequence)
+    def sample_ids (self, perturbed): #perturbed : bool, alpha
+        # sub-stroke sequence is a list, this is the list of ids that we will sample for one stroke, list of ids of substrokes for one stroke
+        ids =[]
+        if perturbed:
+            #set the initial transition probabilities 
+            pT = torch.exp(self.lib.logStart) #SUBSTITUIR PELA LOGSTART PERTURBED
+            pT = self.truncate_start(pT)
+            # step through and sample 'nsub' sub-strokes
+            for _ in range(self.nsub):
+                #ss = torch.multinomial(pT,1)
+                #ss= torch.squeeze (ss,-1)
+                ss = dist.Categorical(probs=pT).sample()
+                ids.append(ss)
+                
+                # update transition probabilities; condition on previous sub-stroke
+                pT = self.pT_perturbed(ss)
+        else: 
+            #set the initial transition probabilities 
+            pT = torch.exp(self.lib.logStart)
+            pT = self.truncate_start(pT)
+            for _ in range(self.nsub):
+                #ss = torch.multinomial(pT,1)
+                #ss= torch.squeeze (ss,-1)
+                ss = dist.Categorical(probs=pT).sample()
+                ids.append(ss)
+                print (ids)
+                
+                # update transition probabilities; condition on previous sub-stroke
+                pT = self.pT_truncate(ss)
+                
         
-        
-   #empiracally count the number of transitions that happen between primitives 
-   #save the lists of primitive indexes' sequences 
-   #know the number of symbols that were generated 
-   #check every combination of transitions - row by row of the transition matrix 
-    def new_logT(self):
-        t_counts= self.nsub * self.n_characters - self.n_characters #number of total counts - it has to be the number of transitions that exist in seq_ids - still have to count this...
-        T = torch.zeros((1212,1212))
-        for i in self.subparts:
-            print (i)
-            counts=0
-            for j in self.subparts:
-                print(j)
-                for l in range(len(self.seq_ids)-1):
-                    if i in self.seq_ids[l]:
-                        if j in self.seq_ids[l]:
-                            if self.seq_ids[l][self.seq_ids[l].index(i)+1] == j: #this is a problem, there can be more than one index where i exists
-                                counts += 1
-                                print ('counts %s.' %counts)
-                p = counts/t_counts 
-                print(p)
-                #falta acrescentar depois aqui a matriz T e no final fazer log de tudo parwa obtermos logT
-                T[i,j]= p
-                print(T)
-        logT = torch.log(T)
-        self.logT = logT
-        return logT
-        
-        
+        # convert list into tensor
+        self.pT = pT #isto é irrelevante estar aqui, pois para cada stroke recomeça-se o sampling dos ids com a logStart
+        self.seq = ids
+        self.ids = torch.stack(ids)
+        return ids
 
-            
-    #remove entries that don't correspond to the possible indexes
+    #remove entries that don't correspond to the available indexes (subids) of primitives given by the subpart list in the logStart matrix 
     def truncate_start (self, pT):
         m = np.isin([i for i in range(len(pT))], self.subparts)
         m = np.invert(m)
         indices = np.argwhere(m)
         pT[indices] = 0
+        "this is needed to get the primitive board"
+        #if pT[self.subparts] == 0: 
+              #pT[self.subparts]= 1
         assert pT.sum() != 0, "pT vector sum is zero"
-            
         return pT
     
-    #remove entries that don't correspond to the possible indexes
-    #def truncateT (self, subparts):
-       #p = self.lib.logT
-       #m = np.isin([i for i in range(len(p))], subparts)
-       #n = np.invert(m)
-       #indices2 = np.argwhere(n)
-       #p[:,indices2]=0
-       #p[indices2,:]=0
-       #return p
-       
+    #for the non perturbed pT, only account for the primitives that are comprised in the subpart list, other primitives other than those cannot be sampled
+    def pT_truncate (self,ids):
+        assert ids.shape == torch.Size([])
+        R = self.truncateT()
+        R = R[ids]
+        #print(R)
+        pT = R / torch.sum(R) #normalize pT
+        return pT
+    
+   
    #remove entries that don't correspond to the possible indexes
     def truncateT (self):
         logR = self.lib.logT
@@ -195,10 +191,10 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         indices2 = np.argwhere(n)
         R[:,indices2]=0
         R[indices2,:]=0
-        #print (R)
+       
         return R
     
-    def M_perturbation(self,str, alpha):
+    def M_perturbation(self,str, alpha): #vamos ter de mudar esta função para corresponder às funções desenvolvidas em statistics 
         logR = self.lib.logT
         s = list(logR.size())
         if str == "Gaussian":
@@ -206,79 +202,29 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         #if str == "Dirichlet":
         #if str == "Poisson":
         #if str == "Exponential":
-            
-            
         return M_perturbation
             
-    
-   
+
     def truncateT_perturbed (self): #in gaussian noise the alpha can be sqrt(variance) #perturbar antes a matrix logT, perturbar sem normalizar na logT 
         logR = self.lib.logT
-        logR_p = logR + self.M_perturbation("Gaussian",0)
+        logR_p = logR + self.M_perturbation("Gaussian",0) #vamos ter de trocar isto para corresponder às perturbações feitas no ficheiro statistics
         R = torch.exp(logR_p)
         m = np.isin([i for i in range(len(R))], self.subparts)
         n = np.invert(m)
         indices2 = np.argwhere(n)
         R[:,indices2]=0
         R[indices2,:]=0
-        #print (R)
+        
         return R
-        
-    
-    def pT_truncate (self,ids):
-        #assert ids.shape == torch.Size([])
-        R = self.truncateT()
-        R = R[ids]
-        #print(R)
-        pT = R / torch.sum(R)
-        return pT
-
-        
+   
     def pT_perturbed (self,ids): 
-        #assert ids.shape == torch.size ([])
+        assert ids.shape == torch.size ([])
         R = self.truncateT_perturbed()
         R = R[ids]
-        #print(R)
         pT_perturbed = R / torch.sum(R)
         return pT_perturbed
         
-        
-    #subparts are the available ids, nsub are the number of ids we want to sample (the number of subparts in the id list sequence)
-    def sample_ids (self, perturbed): #perturbed : bool, alpha
-        #set the initial transition probabilities 
-        pT = torch.exp(self.lib.logStart)
-        pT = self.truncate_start (pT)
-        print(pT)
-        # sub-stroke sequence is a list, this is the list of ids that we will sample
-        ids =[]
-        if perturbed:
-            # step through and sample 'nsub' sub-strokes
-            for _ in range(self.nsub):
-                ss = torch.multinomial(pT,1)
-                ss= torch.squeeze (ss,-1)
-                ids.append(ss)
-                # update transition probabilities; condition on previous sub-stroke
-                pT = self.pT_perturbed(ss)
-        else: 
-            for _ in range(self.nsub):
-                ss = torch.multinomial(pT,1)
-                ss= torch.squeeze (ss,-1)
-                ids.append(ss)
-                print (ids)
-                # update transition probabilities; condition on previous sub-stroke
-                pT = self.pT_truncate(ss)
-                print (pT)
-        
-        # convert list into tensor
-        self.pT = pT
-        self.ids = torch.stack(ids)
-        self.seq = ids
-        print(ids)
-        return ids
-    
-        
-            
-       
+     
 #o objetivo é dar uma lista de ids possíveis a utilizar e a partir daí fazer o sampling da ordem em que os ids aparecem usando pT 
 # ou então a pT perturbada, por isso o que vamos ter é uma função que recebe uma lista de ids e usa pT, outra função que recebe a 
 # a lista de ids e usa a pT perturbed, e uma função que recebe como argumento a lista restrita de ids e diz se perturbamos ou não 
@@ -289,7 +235,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
 ###### SCORING SAMPLING #########################################################################################################################
 
 #we can also get the scores for the perturbed version of the model 
-# we are not sampling nstrokes and nsub from the distributions but we are scoring the values we aree giving these variables from the correspondent distributions 
+# we are not sampling n_strokes and nsub from the distributions but we are scoring the values we are giving these variables from the correspondent distributions 
 
 
     def score_n_strokes(self):
@@ -343,7 +289,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
 
         return ll
     
-    def score_subIDs(self):
+    def score_subIDs(self): #isto ainda não está a contabilizar as perturbações
         """
         Compute the log-probability of a sub-stroke ID sequence under the prior
 
@@ -358,7 +304,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
             scalar; log-probability of the sub-stroke ID sequence
         """
         # set initial transition probabilities
-        pT = self.pT #we have to use the probability transition matrix that was used to do the sampling of the ids in sample_ids (?)
+        pT = torch.exp(self.lib.logStart)
         
         # initialize log-prob vector
         ll = torch.zeros(len(self.ids), dtype=torch.float)
@@ -367,7 +313,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
             # add to log-prob accumulator
             ll[i] = dist.Categorical(probs=pT).log_prob(ss)
             # update transition probabilities; condition on previous sub-stroke
-            pT = self.pT(ss)
+            pT = self.pT_truncate(ss)
 
         return ll
     
@@ -389,8 +335,8 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         ll : (nsub,) tensor
             vector of log-likelihood scores
         """
-        if self.isunif:
-            raise NotImplementedError
+        #if self.isunif:
+            #raise NotImplementedError
         # check that subid is a vector
         assert len(self.ids.shape) == 1
         # record vector length
@@ -439,7 +385,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
 
         return ll
     
-    def score_part_type(self, ptype):#ptype is gotten from the get_part_type function, it is the stroke type 
+    def score_part_type(self):#ptype is gotten from the get_part_type function, it is the stroke type 
         """
         Compute the log-probability of the stroke type, conditioned on a
         stroke count, under the prior
@@ -455,10 +401,11 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         ll : tensor
             scalar; log-probability of the stroke type
         """
+        
         nsub_score = self.score_nsub()
         subIDs_scores = self.score_subIDs()
-        shapes_scores = self.score_shapes_type()
-        invscales_scores = self.score_invscales_type()
+        shapes_scores = self.STD.score_shapes_type(self.ids, self.shapes)
+        invscales_scores = self.STD.score_invscales_type(self.ids, self.invscales)
         ll = nsub_score + torch.sum(subIDs_scores) + torch.sum(shapes_scores) \
              + torch.sum(invscales_scores) #sum of scores
 
@@ -485,7 +432,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         ll = ll + self.score_n_strokes()
         # step through and score each part
         for i in range(self.n_strokes):
-            ll = ll + self.score_part_type( self.P[i])
+            ll = ll + self.score_part_type()
             ll = ll + self.CTD.rdist.score_relation_type(
                 self.P[:i], self.R[i]
             )
@@ -493,8 +440,8 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         return ll
     
 
-######## OPTIMIZING CHARACTER MODEL TYPE ###################
-        
+######## OPTIMIZING CHARACTER MODEL TYPE ##################################
+    #adapted optimize character type to perturbing 
     def optimize_type(self, c, lr, nb_iter, eps, show_examples=True):
         """
         Take a character type and optimize its parameters to maximize the
@@ -557,9 +504,9 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
             # project all parameters into allowable range
             with torch.no_grad():
                 for param, lb, ub in zip(params, lbs, ubs):
-                    if lb is not None:
+                    if torch.is_tensor(lb):
                         torch.max(param, lb, out=param)
-                    if ub is not None:
+                    if torch.is_tensor(ub):
                         torch.min(param, ub, out=param)
 
         return score_list
@@ -574,25 +521,9 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         plt.xlabel('iteration')
         plt.show()
         
-        
-        
-    
-        
-    
-        
-        
-
-        
-        
-    
-    
 
 
-
-## FUNCTIONS TO GENERATE NEW DATA #######################################################################################################
-
-
-
+## FUNCTIONS TO GENERATE NEW DATA/ NEW CHARACTERS  #######################################################################################################
 
 
     def display_type(self,c):
@@ -603,95 +534,94 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
             print('\tsub-stroke ids: ', list(c.part_types[i].ids.numpy()))
             print('\trelation category: %s' % c.relation_types[i].category)
         print('----END CHARACTER TYPE INFO----')
+        
+        file = open("./original_info", 'w') 
+        file.write("num strokes:" + str(c.k)+ "\n")
+        for i in range(c.k):
+            file.write("Stroke #:" + str(i)+ "\n")
+            file.write("\tsub-stroke ids:" + str(list(c.part_types[i].ids.numpy()))+ "\n")
+            file.write("\\trelation category:" + str(c.relation_types[i].category)+ "\n")
+            file.write("----END CHARACTER TYPE INFO----")
+        file.close()
 
-    def test_dataset (self,n_strokes, nsub, alpha, perturbed, nb_iter):#,nb_iter):
-        lr=1e-3
-        eps=1e-4
+    def test_dataset (self,n_strokes, nsub, perturbed ,nb_iter):
+        """
+        This function allows us to generate a new character type
+        generates a character type given previously the number of strokes, the number of substrokes for each stroke and the indexes of the primitives 
+        that we want to use (main difference from the original code - we control n_strokes, nsub and subparts)
+        after generating a character type ot optimizes the type - minimizing the loglikelihood score of the character type 
+
+        Parameters
+        ----------
+        n_strokes: int, number of strokes
+        nsub : list of tensors dim= n_strokes, each tensor has the nsub for each stroke
+        nb_iter : int
+        perturbed = bool
+
+        """
+        
+        lr=1e-3 #default learning rate 
+        eps=1e-4 #default tolerance for constrained optimization
+        
         print('generating character...')
-        
         model = Perturbing()
-        model.n_strokes = torch.tensor (n_strokes)
-        subp_list =[425]
+        model.n_strokes = n_strokes #number of strokes 
+        subp_list =[10,200,1000] #list of primitive indexes to use 
         model.subparts = subp_list #possible ids to use when sampling the id list 
-        model.alpha = alpha 
-        model.nsub = torch.tensor (nsub)
-       
+        model.nsub = nsub #list of nsub
         
-        model.get_part_type(perturbed) #isto é preciso????
+       
         c_type = model.known_stype(perturbed)
         model.display_type(c_type)
-        print('THESE ARE THE IDS', model.ids)
-        #print('num strokes: %i' % model.n_strokes)
-        #print('num sub-strokes: ', model.nsub.item())
-        
+
         # optimize the character type that we sampled
         model.optimize(c_type,lr, nb_iter, eps)
 
         c_token = model.CM.sample_token(c_type)
         c_image = model.CM.sample_image(c_token)
         plt.rcParams["figure.figsize"] = [105, 105]
-        #plt.imshow(c_image, cmap='Greys')
+        plt.imshow(c_image, cmap='Greys')
         plt.imsave('./original.png', c_image, cmap='Greys')
             
             
         
-    
+    #visualize every primitive 
     def get_primitive_board (self):
-    
-        
         #set the parameters to sample the primitives 
         self.n_strokes = 1 #we begin 1 stroke and 1 subtroke in order to visualize the primitives that are being used 
-        self.nsub = torch.tensor ([1])
-        subpart_idx = np.linspace(1,1212,1212, dtype = int)
-        #subpart_idx2 = np.linspace(600,1212,612, dtype = int)
+        self.nsub = torch.tensor (1) #sampling every existing primitive, 1 stroke and 1 substroke
+        #list of subparts that will allows us to sample each primitive at a time 
+        subpart_idx = np.linspace(0,1211,1212, dtype = int)
         subpart_idx = subpart_idx.tolist()
-        #subpart_idx2 = [585]
-        
+    
         rows = 34
         columns = 36
-        
         fig ,ax= plt.subplots(nrows=rows,ncols=columns,figsize=(105,105))
-       
-        
-        
+
         count_images=0
+   
         for i in range(rows):
             for j in range(columns):
-                #try:
-                subpart_sample = subpart_idx[count_images]
-                self.subparts = subpart_sample
-                #self.sample_ids(False) 
-                self.get_part_type(False)
-                c_type = self.known_stype(False)
-                print("done", count_images)
-                c_token = self.CM.sample_token(c_type)
-                c_image = self.CM.sample_image(c_token)
-               
-                
-                
-                
-                ax[i,j].imshow(c_image, cmap="Greys")
-                ax[i,j].set_title("prim_" + str(count_images),fontsize=20)
-                count_images+=1
-                    #frame = plt.gca()
-                    #frame.axes.get_xaxis().set_visible(False)
-                    #frame.axes.get_yaxis().set_visible(False)
-                #except IndexError:
-                    #StopIteration
+                try:
+                    #for each character that is being generated the subparts available will only be 1 primitive, do this for every existing primitive
+                    subpart_sample = subpart_idx[count_images]
+                    self.subparts = subpart_sample
                     
-               
-
-                
+                    c_type = self.known_stype(False)
+                    print("done", count_images)
+                    print(self.ids)
+                    print(self.pT)
+                    
+                    c_token = self.CM.sample_token(c_type)
+                    c_image = self.CM.sample_image(c_token)
+                   
+                    ax[i,j].imshow(c_image, cmap="Greys")
+                    ax[i,j].set_title("prim_" + str(count_images),fontsize=20)
+                    count_images+=1
+                except:
+                    pass           
         fig.tight_layout()
         #plt.show()
-        
-
-           
-            #fig.add_subplot(rows, columns, i)
-
-       
-            
-            #plt.subplot.set_title("prim"+str(i))
         fig.savefig('/Users/carolinacaramelo/Desktop/Thesis_results/primitives_all2.png', cmap='Greys')
        
            
