@@ -16,6 +16,8 @@ from pybpl.model import token_dist
 from pybpl.objects import StrokeType, ConceptType, CharacterType, StrokeToken,ConceptToken,CharacterToken
 from pybpl.objects import (RelationType, RelationIndependent, RelationAttach,
                        RelationAttachAlong, RelationToken)
+from statistics import *
+from DP import DirichletProcessSample
 import torch
 import torch.distributions as dist
 import os 
@@ -23,7 +25,7 @@ from PIL import Image as img
 from pybpl.model.type_dist import ConceptTypeDist, CharacterTypeDist, PartTypeDist, StrokeTypeDist, RelationTypeDist
 from pybpl.model.token_dist import ConceptTokenDist, CharacterTokenDist, PartTokenDist, StrokeTokenDist, RelationTokenDist
 from scipy import io
-
+from scipy.stats import norm
 
 
 class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
@@ -38,6 +40,10 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         self.R = []
         self.P = []
         self.seq_ids = [[]]
+        
+       
+       
+       
 
 
         # initializaton of class inheritances
@@ -51,13 +57,14 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         self.CTT = ConceptTokenDist(self.lib)
         self.RTT = RelationTokenDist(self.lib)
         self.CT = CharacterType(self.n_strokes, self.P, self.R)
+        #self.DP = DirichletProcessSample(base_measure=self.base_measure,alpha=self.alpha)
         
   
         
 #### FUNCTIONS FOR SAMPLING THE CHARACTER MODEL TYPE ################################################################################################
     
     #altered function of StrokeTypeDist class, defines a stroke type 
-    def get_part_type (self, perturbed):
+    def get_part_type (self, perturbed, *args):
         """
         Define a stroke type from a list of sub-stroke ids
         Parameters
@@ -72,7 +79,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         # get the number of sub-strokes
         nsub = self.nsub
         # sample the sequence of sub-stroke IDs
-        self.sample_ids(perturbed)
+        self.sample_ids(perturbed, *args)
 
         # sample control points for each sub-stroke in the sequence
         shapes = self.STD.sample_shapes_type(self.ids)
@@ -86,7 +93,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
        
     
     #altered function from ConceptTypeDist class, defines a concept type
-    def known_sample_type (self,perturbed):
+    def known_sample_type (self,perturbed, *args):
     # initialize relation type lists
         self.R = []
         self.P = []
@@ -95,7 +102,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         for i in range(self.n_strokes):
             self.nsub = nsub[i]
             # sample the relation type
-            p= self.get_part_type(perturbed)
+            p= self.get_part_type(perturbed, *args)
             r = self.CTD.rdist.sample_relation_type(self.P)
             # append to the lists
             self.R.append(r)
@@ -106,9 +113,9 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
  
 
     #altered function from CharacterTypeDist class, defines a character type
-    def known_ctype (self, perturbed):
+    def known_ctype (self, perturbed, *args):
         
-        self.known_sample_type(perturbed)
+        self.known_sample_type(perturbed, *args)
         print(self.R, self.P)
         CT = ConceptType(self.n_strokes, self.P, self.R)
 
@@ -116,29 +123,42 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
     
     
     #altered function from CharacterModel class, sampling the character type of the image (model) that will be generated
-    def known_stype(self, perturbed):
-         return self.known_ctype(perturbed)
+    def known_stype(self, perturbed, *args):
+         return self.known_ctype(perturbed, *args)
 
    
-#### PERTURBED SAMPLING #############################################################################################################
+#### PERTURBED SAMPLING - KNOWING PRIMITIVES USED #############################################################################################################
     
     #subparts are the available ids, nsub are the number of ids we want to sample (the number of subparts in the id list sequence)
-    def sample_ids (self, perturbed): #perturbed : bool, alpha
+    def sample_ids (self, perturbed, *args): #perturbed : bool, alpha
         # sub-stroke sequence is a list, this is the list of ids that we will sample for one stroke, list of ids of substrokes for one stroke
         ids =[]
         if perturbed:
-            #set the initial transition probabilities 
-            pT = torch.exp(self.lib.logStart) #SUBSTITUIR PELA LOGSTART PERTURBED
+            if args == "perturb_quartile1":
+                #set the initial transition probabilities 
+                pT = perturb_quartile1()[1] #perturbed logstart
+            if args == "perturb_quartile2":
+                pT = perturb_quartile2()[1] #perturbed logstart
+            if args == "perturb_q4":
+                pT = perturb_q4()[1]
+            if args == "perturb_flatenning":
+                pT = perturb_flatenning()[1]
+            if args == "perturb_zero":
+                pT = perturb_zero()[1]
+            if args == "perturb_specific":
+                pT = perturb_specific()[1]
+            if args == "perturb_specific2":
+                pT = perturb_specific2()[1]
+      
             pT = self.truncate_start(pT)
-            # step through and sample 'nsub' sub-strokes
+            #step through and sample 'nsub' sub-strokes
             for _ in range(self.nsub):
                 #ss = torch.multinomial(pT,1)
                 #ss= torch.squeeze (ss,-1)
                 ss = dist.Categorical(probs=pT).sample()
                 ids.append(ss)
-                
                 # update transition probabilities; condition on previous sub-stroke
-                pT = self.pT_perturbed(ss)
+                pT = self.pT_perturbed(ss, *args)
         else: 
             #set the initial transition probabilities 
             pT = torch.exp(self.lib.logStart)
@@ -149,7 +169,6 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
                 ss = dist.Categorical(probs=pT).sample()
                 ids.append(ss)
                 print (ids)
-                
                 # update transition probabilities; condition on previous sub-stroke
                 pT = self.pT_truncate(ss)
                 
@@ -166,7 +185,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         m = np.invert(m)
         indices = np.argwhere(m)
         pT[indices] = 0
-        "this is needed to get the primitive board"
+        "what is commented is needed to get the primitive board"
         #if pT[self.subparts] == 0: 
               #pT[self.subparts]= 1
         assert pT.sum() != 0, "pT vector sum is zero"
@@ -194,34 +213,47 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
        
         return R
     
-    def M_perturbation(self,str, alpha): #vamos ter de mudar esta função para corresponder às funções desenvolvidas em statistics 
-        logR = self.lib.logT
-        s = list(logR.size())
-        if str == "Gaussian":
-            M_perturbation = (alpha**0.5) * torch.randn(s[0], s[1]) #The function torch.randn produces a tensor with elements drawn from a Gaussian distribution of zero mean and unit variance. Multiply by sqrt(0.1) to have the desired variance.
+    #def M_perturbation(self,str, alpha): #vamos ter de mudar esta função para corresponder às funções desenvolvidas em statistics - podemos apagar isto
+        #logR = self.lib.logT
+        #s = list(logR.size())
+        #if str == "Gaussian":
+            #M_perturbation = (alpha**0.5) * torch.randn(s[0], s[1]) #The function torch.randn produces a tensor with elements drawn from a Gaussian distribution of zero mean and unit variance. Multiply by sqrt(0.1) to have the desired variance.
         #if str == "Dirichlet":
         #if str == "Poisson":
         #if str == "Exponential":
-        return M_perturbation
+        #return M_perturbation
             
 
-    def truncateT_perturbed (self): #in gaussian noise the alpha can be sqrt(variance) #perturbar antes a matrix logT, perturbar sem normalizar na logT 
-        logR = self.lib.logT
-        logR_p = logR + self.M_perturbation("Gaussian",0) #vamos ter de trocar isto para corresponder às perturbações feitas no ficheiro statistics
-        R = torch.exp(logR_p)
-        m = np.isin([i for i in range(len(R))], self.subparts)
+    def truncateT_perturbed (self, *args): #in gaussian noise the alpha can be sqrt(variance) #perturbar antes a matrix logT, perturbar sem normalizar na logT 
+        if args == "perturb_quartile1":
+            #set the initial transition probabilities 
+            pT = statistics.perturb_quartile1()[0] #perturbed logstart
+        if args == "perturb_quartile2":
+            pT = statistics.perturb_quartile2()[0] #perturbed logstart
+        if args == "perturb_q4":
+            pT = statistics.perturb_q4()[0]
+        if args == "perturb_flatenning":
+            pT = statistics.perturb_flatenning()[0]
+        if args == "perturb_zero":
+            pT = statistics.perturb_zero()[0]
+        if args == "perturb_specific":
+            pT = statistics.perturb_specific()[0]
+        if args == "perturb_specific2":
+            pT = statistics.perturb_specific2()[0]
+            
+        m = np.isin([i for i in range(len(pT))], self.subparts)
         n = np.invert(m)
         indices2 = np.argwhere(n)
-        R[:,indices2]=0
-        R[indices2,:]=0
+        pT[:,indices2]=0
+        pT[indices2,:]=0
         
-        return R
+        return pT
    
-    def pT_perturbed (self,ids): 
+    def pT_perturbed (self,ids, *args): 
         assert ids.shape == torch.size ([])
-        R = self.truncateT_perturbed()
-        R = R[ids]
-        pT_perturbed = R / torch.sum(R)
+        pT = self.truncateT_perturbed(*args)
+        pT = pT[ids]
+        pT_perturbed = pT
         return pT_perturbed
         
      
@@ -544,7 +576,39 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
             file.write("----END CHARACTER TYPE INFO----")
         file.close()
 
-    def test_dataset (self,n_strokes, nsub, perturbed ,nb_iter):
+    def test_dataset (self,n_strokes, nsub, perturbed):
+        """
+        This function allows us to generate a new character type
+        generates a character type given previously the number of strokes, the number of substrokes for each stroke and the indexes of the primitives 
+        that we want to use (main difference from the original code - we control n_strokes, nsub and subparts)
+        after generating a character type ot optimizes the type - minimizing the loglikelihood score of the character type 
+
+        Parameters
+        ----------
+        n_strokes: int, number of strokes
+        nsub : list of tensors dim= n_strokes, each tensor has the nsub for each stroke
+        nb_iter : int
+        perturbed = bool
+
+        """
+
+        print('generating character...')
+        model = Perturbing()
+        model.n_strokes = n_strokes #number of strokes 
+        subp_list =[655,962,908,76,297] #list of primitive indexes to use 
+        model.subparts = subp_list #possible ids to use when sampling the id list 
+        model.nsub = nsub #list of nsub
+        
+       
+        c_type = model.known_stype(perturbed)
+        model.display_type(c_type)
+        c_token = model.CM.sample_token(c_type)
+        c_image = model.CM.sample_image(c_token)
+        plt.rcParams["figure.figsize"] = [105, 105]
+        plt.imshow(c_image, cmap='Greys')
+        plt.imsave('./original.png', c_image, cmap='Greys')
+
+    def test_dataset2(self,n_strokes, nsub, perturbed ,nb_iter):
         """
         This function allows us to generate a new character type
         generates a character type given previously the number of strokes, the number of substrokes for each stroke and the indexes of the primitives 
@@ -566,7 +630,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         print('generating character...')
         model = Perturbing()
         model.n_strokes = n_strokes #number of strokes 
-        subp_list =[10,200,1000] #list of primitive indexes to use 
+        subp_list =[655,962,908,76,297] #list of primitive indexes to use 
         model.subparts = subp_list #possible ids to use when sampling the id list 
         model.nsub = nsub #list of nsub
         
@@ -685,103 +749,6 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         plt.show()
 
     
-       
-    
-   
-    #generate alphabet will generate a set of character images related to each other - one alphabet 
-    #the function will generate an alphabet with the unperturbed model and one alphabet for the perturbed model
-    #the generation of the alphabets for both cases will use the same number of strokes, same number of sub-strokes and the the same primitives 
-    #each alphabet will have 30 characters 
-    #the sub-strokes/primitives used will be transformed into images and stores in order to have a better comprehension of what these are 
-    #the alphabets will be stored in a folder 
-    #20 tokens of each one of the character types 
-    #1 alphabet - 30 character types - 20 tokens for each character type
-    def generate_alphabet(self, n_strokes, nsub, alpha, n_characters, n_tokens):
-        #set the parameters to sample the primitives 
-        self.n_strokes = 1 #we begin 1 stroke and 1 subtroke in order to visualize the primitives that are being used 
-        self.nsub = torch.tensor ([1])
-        subpart_idx = np.linspace(1,1212,1212, dtype = int) #creates an a array of the primitive indexes 1-1212
-        subpart_list = []
-        path = '/Users/carolinacaramelo/Desktop/alphabets'
-        os.makedirs(path)
-        for i in range(nsub): #print the primitives we are using, being able to visualize what are the sampled primitives
-       
-            subpart_sample = np.random.choice(subpart_idx)
-            print (subpart_sample ,'olá')
-            subpart_list += [subpart_sample]
-            self.subparts = subpart_sample
-            self.sample_ids(False) 
-            self.get_part_type()
-            c_type = self.known_stype()
-            c_token = self.CM.sample_token(c_type)
-            c_image = self.CM.sample_image(c_token)
-            plt.rcParams["figure.figsize"] = (10,50)
-            plt.subplot(nsub,1,i+1)
-            plt.imshow(c_image, cmap="Greys")
-            print(subpart_list , 'adeus')
-            
-        
-        plt.savefig('primitives.png')
-        primitives = img.open (r"/Users/carolinacaramelo/Desktop/TESE/Code/MasterThesis/pyBPL/pybpl/model/primitives.png") 
-        primitives.save('/Users/carolinacaramelo/Desktop/alphabets/primitives.png', 'PNG')
-        
-        #set the parameters to sample the alphabet
-        #instead of giving the n_strokes and nsub we could also randomly sample these numbers and generate more than one alphabet all at once (with different n_strokes and nsub)
-        self.n_strokes = n_strokes #know we are using these number of strokes and substrokes
-        self.nsub = torch.tensor ([nsub]) #we are going to use the same number of strokes and substrokes for both alphabets
-        self.subparts = subpart_list
-        self.alpha = alpha #for the perturbation
-        self.n_characters = n_characters #for the new logT function
-        
-        seq_list=[]
-        #generate non perturbed alphabet 
-        path = '/Users/carolinacaramelo/Desktop/alphabets/nonperturbed'
-        os.makedirs(path)
-        for i in range(n_characters):
-            
-            path_character = '/Users/carolinacaramelo/Desktop/alphabets/nonperturbed/character%i'%i
-            os.makedirs(path_character)
-            self.sample_ids(False)
-            seq_list[i] = self.seq #store the sequence of indexes 
-            self.get_part_type()
-            c_type = self.known_stype() #list of character types 
-            
-            #saves different tokens of the same character
-            for j in range(n_tokens):
-                c_token = self.CM.sample_token(c_type)
-                c_image = self.CM.sample_image(c_token)
-                plt.rcParams["figure.figsize"] = (10,50)
-                plt.subplot(1,1,1)
-                plt.imshow(c_image, cmap="Greys")
-                plt.savefig('char%s.' %j +'.png')
-                char = img.open (r"/Users/carolinacaramelo/Desktop/TESE/Code/MasterThesis/pyBPL/pybpl/model/char%s." %j+".png") 
-                char.save('/Users/carolinacaramelo/Desktop/alphabets/nonperturbed/character%i' %i + '/char%s.' %j, 'PNG')
-        
-        #generate perturbed alphabet 
-        path = '/Users/carolinacaramelo/Desktop/alphabets/perturbed'
-        os.makedirs(path)
-        for i in range(n_characters):
-            
-            path_character = '/Users/carolinacaramelo/Desktop/alphabets/perturbed/character%i'%i
-            os.makedirs(path_character)
-            self.sample_ids(True) 
-            seq_list[n_characters+1+i] = self.seq #continue storing the sequence of indexes
-            self.get_part_type()
-            c_type = self.known_stype() #list of character types 
-            
-            #saves different tokens of the same character
-            for j in range(n_tokens):
-                c_token = self.CM.sample_token(c_type)
-                c_image = self.CM.sample_image(c_token)
-                plt.rcParams["figure.figsize"] = (10,50)
-                plt.subplot(1,1,1)
-                plt.imshow(c_image, cmap="Greys")
-                plt.savefig('char%s.' %j +'.png')
-                char = img.open (r"/Users/carolinacaramelo/Desktop/TESE/Code/MasterThesis/pyBPL/pybpl/model/char%s." %j+".png") 
-                char.save('/Users/carolinacaramelo/Desktop/alphabets/perturbed/character%i' %i + '/char%s.' %j, 'PNG')
-        self.seq_ids = seq_list
-        
-
 ###### TESTING RECOVERY ######################################
 
 #Exemplo para imagem que tem sempre apenas 1 sub-stroke para cada stroke
@@ -803,20 +770,19 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
 
         print(array_ids)
 
-
-        
-
         ids=[]
 
         for i in range(array_ids.size):
+            list_ids=[]
             for j in range (array_ids[i][0].size):
-                for k in range (array_ids[i][0][0].size):
-                    list_ids=[]
                 
-                    array_idx = array_ids[i][0][j][k].astype("float32")
+                #for k in range (array_ids[0][0][i].size):
+                    #list_ids=[]
                 
-                    print(array_ids)
-                    list_ids += [array_idx]
+                array_idx = array_ids[i][0][j][0].astype("float32")
+                
+                print(array_ids)
+                list_ids += [array_idx]
                 
             ids += [torch.tensor(list_ids).long()]#in tensor form inside the list
                 
@@ -1213,7 +1179,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
 
         return r
 
-###ALTERED FUNCTION TO SAMPLE CHARACTER TYPE 
+###ALTERED FUNCTION TO SAMPLE CHARACTER TYPE - known parameters from inference - without sampling 
 
     #altered function of StrokeTypeDist class, this time there will be a lot of things that we won't sample because we got the values from the inference
     def get_part_type_recover (self, perturbed, nsub, ids, invscales):
@@ -1280,10 +1246,6 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
     def known_stype_recover(self, perturbed):
          return self.known_ctype_recover(perturbed)
     
-    
-
-
-
 
 
 #####FUNCTIONS FOR SAMPLING THE CHARACTER TOKEN  with known parameters without sampling     
@@ -1413,12 +1375,508 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         return rtoken
 
 
-
+####### GENERATE ALPHABET #######################################################################################
 
  
+    def p_mem(self, perturbed, *args): #perturbed, *args - fazer no final para pT 
+       #this function will transform the learnt probability distributions of the BPL parameters in a new stochastic memoized distribution
+       #P-mem, through a Dirichlet Process, in order to create dependencies between the different characters of a new generated alphabet. 
+       #P-mem will induce dependencies between previously independent samples. This new "memoized" procedures will define a set of probability distributions 
+       #with the chinese restaurant process clustering property, used for learning the number of strokes, sub-strokes, the strokes (subids sequence, shapes, invscales)
+       # and the relation types that are characteristic of a particular alphabet. 
+       # The function p_mem will return a collection of these procedures that will be passed to generate_type functions. 
+       
+       #P-mem list
+       Pmem=[]
+       
+       #alpha is defined the same for every DP (is it?)
+       alpha = 10
+       
+       #P-mem for number of strokes 
+       base_measure = lambda: dist.Categorical(probs=self.lib.pkappa[0:3]).sample()+1  #distribution for sampling n_strokes #only allowing 4 strokes 
+       dirichlet_norm = DirichletProcessSample(base_measure=base_measure, alpha=alpha)
+       Pmem +=[[dirichlet_norm]]
+       
+       
+       #P-mem for number of substrokes 
+       Pmem_nsub = []
+       for i in range(10):
+           pvec = self.lib.pmat_nsub[i][0:3] #only allowing 3 nsub
+           base_measure =  lambda: dist.Categorical(probs=pvec).sample() + 1 #distribution for sampling nsub, depending on the number of n_strokes
+           dirichlet_norm = DirichletProcessSample(base_measure=base_measure, alpha=alpha)
+           Pmem_nsub += [dirichlet_norm]
+       Pmem += [Pmem_nsub]
+       
+       #P-mem for GENERATE STROKES - includes subids, shapes and scales of strokes 
+       #P-mem for subIDS - logStart
+       if perturbed:
+           if args == "perturb_quartile1":
+               #set the initial transition probabilities 
+               logStart = perturb_quartile1()[1] #perturbed logstart
+           if args == "perturb_quartile2":
+               logStart = perturb_quartile2()[1] #perturbed logstart
+           if args == "perturb_q4":
+               logStart = perturb_q4()[1]
+           if args == "perturb_flatenning":
+               logStart = perturb_flatenning()[1]
+           if args == "perturb_zero":
+               logStart = perturb_zero()[1]
+           if args == "perturb_specific":
+               logStart = perturb_specific()[1]
+           if args == "perturb_specific2":
+               logStart = perturb_specific2()[1]
+       
+       else: 
+           logStart = torch.exp(self.lib.logStart)
+       
+       base_measure = lambda: dist.Categorical(probs=logStart).sample()  #distribution for sampling the first nsub of each strokes
+       dirichlet_norm = DirichletProcessSample(base_measure=base_measure, alpha=alpha)
+       Pmem +=[[dirichlet_norm]]
+       
+       
+       #P-mem for subIDS - pT - including perturbations
+       Pmem_pT = []
+       if perturbed:
+           if args == "perturb_quartile1":
+               #set the initial transition probabilities 
+               pT = perturb_quartile1()[0] #perturbed logstart
+           if args == "perturb_quartile2":
+               pT = perturb_quartile2()[0] #perturbed logstart
+           if args == "perturb_q4":
+               pT = perturb_q4()[0]
+           if args == "perturb_flatenning":
+               pT = perturb_flatenning()[0]
+           if args == "perturb_zero":
+               pT = perturb_zero()[0]
+           if args == "perturb_specific":
+               pT = perturb_specific()[0]
+           if args == "perturb_specific2":
+               pT = perturb_specific2()[0]
+           self.pT = pT
+       else:
+            logR = self.lib.logT
+            R = torch.exp(logR)
+            pT = R / torch.sum(R)
+            self.pT = pT
+       for i in range(1212):  
+            pT = self.pT
+            prev_state = torch.tensor([i])
+            pT = pT[prev_state]
+            base_measure =  lambda: dist.Categorical(probs=pT).sample() #distribution for sampling subids, depending on previous state
+            dirichlet_norm = DirichletProcessSample(base_measure=base_measure, alpha=alpha)
+            Pmem_pT+= [dirichlet_norm]
+       Pmem += [Pmem_pT]        
+          
+ 
+       #P-mem for shapes
+       Pmem_shapes = []
+       for i in range(1212):
+           subid = torch.tensor([i])
+           shapes_mu = self.lib.shape['mu'][subid]
+           shapes_Cov = self.lib.shape['Sigma'][subid]
+           base_measure =  lambda: dist.MultivariateNormal(shapes_mu,shapes_Cov).sample() #distribution for sampling shapes, depending on previous subID
+           dirichlet_norm = DirichletProcessSample(base_measure=base_measure, alpha=alpha)
+           Pmem_shapes += [dirichlet_norm]
+       Pmem += [Pmem_shapes]
+       
+       #P-mem for scales 
+       Pmem_invscales = []
+       for i in range(1212):
+           subid = torch.tensor([i])
+           scales_theta = self.lib.scale['theta']
+           scales_con = scales_theta[:,0][subid] 
+           scales_rate = 1 / scales_theta[:,1][subid]
+           base_measure =  lambda: dist.Gamma(scales_con, scales_rate).sample() #distribution for sampling invscales, depending on previous 
+           dirichlet_norm = DirichletProcessSample(base_measure=base_measure, alpha=alpha)
+           Pmem_invscales += [dirichlet_norm]
+       Pmem += [Pmem_invscales]
+       
+       #P-mem for relation type
+       base_measure = lambda: dist.Categorical(probs=self.lib.rel['mixprob']).sample() #distribution for sampling n_strokes 
+       dirichlet_norm = DirichletProcessSample(base_measure=base_measure, alpha=alpha)
+       Pmem +=[[dirichlet_norm]]
+       
+       self.Pmem = Pmem
+       return Pmem
+   
+#how to acess Pmem list - saved list with "memoized" distributions - we will sample one Pmem list for each different alphabet we are originating 
+# Pmem[0][0] - k
+# Pmem[1][...] - nsub
+# Pmem[2][0] - logstart
+# Pmem[3][...] - pT
+# Pmem[4][...] - shapes
+# Pmem[5][...]- invscales
+# Pmem[6][0] - relation type
+      
 
+############################ SAMPLING PARAMETERS WITH DIRICHLET PROCESS - TYPE LEVEL #################################
 
+    def DP_sample_relation_type(self, prev_parts):
+        """
+        Sample a relation type from the prior for the current stroke,
+        conditioned on the previous strokes
 
+        Parameters
+        ----------
+        prev_parts : list of StrokeType
+            previous part types
 
+        Returns
+        -------
+        r : RelationType
+            relation type sample
+        """
+        for p in prev_parts:
+            assert isinstance(p, StrokeType)
+        nprev = len(prev_parts)
+        stroke_ix = nprev
+        # first sample the relation category
+        if nprev == 0:
+            category = 'unihist'
+        else:
+            indx = self.Pmem[6][0]() #change is here - sampling from Pmem instead of sampling from original distribution 
+            category = self.RTD.__relation_categories[indx]
+
+        # now sample the category-specific type-level parameters
+        if category == 'unihist':
+            data_id = torch.tensor([stroke_ix])
+            gpos = self.RTD.Spatial.sample(data_id)
+            # convert (1,2) tensor to (2,) tensor
+            gpos = torch.squeeze(gpos)
+            r = RelationIndependent(
+                category, gpos, self.RTD.Spatial.xlim, self.Spatial.ylim
+            )
+        elif category in ['start', 'end', 'mid']:
+            # sample random stroke uniformly from previous strokes. this is the
+            # stroke we will attach to
+            probs = torch.ones(nprev)
+            attach_ix = dist.Categorical(probs=probs).sample()
+            if category == 'mid':
+                # sample random sub-stroke uniformly from the selected stroke
+                nsub = prev_parts[attach_ix].nsub
+                probs = torch.ones(nsub)
+                attach_subix = dist.Categorical(probs=probs).sample()
+                # sample random type-level spline coordinate
+                _, lb, ub = bspline_gen_s(self.RTD.ncpt, 1)
+                eval_spot = dist.Uniform(lb, ub).sample()
+                r = RelationAttachAlong(
+                    category, attach_ix, attach_subix, eval_spot, self.RTD.ncpt
+                )
+            else:
+                r = RelationAttach(category, attach_ix)
+        else:
+            raise TypeError('invalid relation')
+
+        return r
+
+    def DP_sample_k(self):
+        """
+        Sample a stroke count from the prior
+
+        Returns
+        -------
+        k : tensor
+            scalar; stroke count
+        """
+        # sample from kappa
+        # NOTE: add 1 to 0-indexed samples
+        k = self.Pmem[0][0]() #change is here, instead of sampling from original distribution we sample from Pmem
+        self.n_strokes = k
+        return k
+    
+    def DP_sample_nsub(self):
+        """
+        Sample a sub-stroke count
+
+        Parameters
+        ----------
+        k : tensor
+            scalar; stroke count
+
+        Returns
+        -------
+        nsub : tensor
+            scalar; sub-stroke count
+        """
+       
+        # sample from the categorical distribution. Add 1 to 0-indexed sample
+        nsub = self.Pmem[1][self.n_strokes-1]()
+        self.nsub = nsub
+
+        return nsub
 
         
+    def DP_sample_subIDs(self):
+        """
+        Sample a sequence of sub-stroke IDs from the prior
+
+        Parameters
+        ----------
+        nsub : tensor
+            scalar; sub-stroke count
+
+        Returns
+        -------
+        subid : (nsub,) tensor
+            sub-stroke ID sequence
+        """
+        # nsub should be a scalar
+        assert self.nsub.shape == torch.Size([])
+        # set initial transition probabilities
+        DP = self.Pmem[2][0]
+       
+        # sub-stroke sequence is a list
+        subid = []
+        # step through and sample 'nsub' sub-strokes
+        for _ in range(self.nsub):
+            # sample the sub-stroke
+            ss = DP()
+            subid.append(ss)
+            # update transition probabilities; condition on previous sub-stroke
+            DP = self.Pmem[3][ss]
+        # convert list into tensor
+        subid = torch.stack(subid)
+        self.subid = subid
+
+        return subid
+
+    def DP_sample_shapes_type(self):
+        """
+        Sample the control points for each sub-stroke ID in a given sequence
+
+        Parameters
+        ----------
+        subid : (nsub,) tensor
+            sub-stroke ID sequence
+
+        Returns
+        -------
+        shapes : (ncpt, 2, nsub) tensor
+            sampled shapes of bsplines
+        """
+        if self.isunif:
+            raise NotImplementedError
+        # check that subid is a vector
+        assert len(self.subid.shape) == 1
+        # record vector length
+        nsub = len(self.subid)
+        
+        subid = self.subid.tolist()
+        shapes = torch.empty(size=(nsub,10))
+        for i in subid:
+            shapes += self.Pmem[4][i]()
+       
+        # transpose axes (nsub, ncpt*2) -> (ncpt*2, nsub)
+        shapes = shapes.transpose(0,1)
+        # reshape tensor (ncpt*2, nsub) -> (ncpt, 2, nsub)
+        shapes = shapes.view(self.STD.ncpt,2,nsub)
+        self.shapes= shapes
+
+        return shapes
+
+    def DP_sample_invscales_type(self):
+        """
+        Sample the scale parameters for each sub-stroke
+
+        Parameters
+        ----------
+        subid : (nsub,) tensor
+            sub-stroke ID sequence
+
+        Returns
+        -------
+        invscales : (nsub,) tensor
+            scale values for each sub-stroke
+        """
+        if self.isunif:
+            raise NotImplementedError
+        # check that it is a vector
+        assert len(self.subid.shape) == 1
+        
+        subid = self.subid.tolist()
+        invscales = torch.empty(size=(len(subid),1))
+        for i in subid:
+            invscales += self.Pmem[5][i]()
+        self.invscales= invscales  
+        return invscales
+
+
+##################################### SAMPLING CHARACTER TYPE WITH DP ##############################
+
+    #altered function of StrokeTypeDist class, defines a stroke type 
+    def DP_get_part_type (self, perturbed, *args):
+        """
+        Define a stroke type from a list of sub-stroke ids
+        Parameters
+        ----------
+        ids : tensor
+            vector, list of sub-part/stroke indices
+        Returns
+        -------
+        p : StrokeType
+            part type sample (strokes are the same things as parts)
+        """
+        
+        # get the number of sub-strokes
+        self.DP_sample_nsub()
+        # sample the sequence of sub-stroke IDs
+        self.DP_sample_subIDs(perturbed, *args)
+        # sample control points for each sub-stroke in the sequence
+        self.DP_sample_shapes_type(self.subid)
+        #sample scales for each sub-stroke in the sequence
+        self.DP_sample_invscales_type(self.subid)
+        
+        p = StrokeType(self.nsub, self.ids, self.shapes, self.invscales)
+        
+        return p 
+       
+    
+    #altered function from ConceptTypeDist class, defines a concept type
+    def DP_sample_type (self,perturbed, *args):
+        self.DP_sample_k()
+        #initialize relation type lists
+        self.R = []
+        self.P = []
+       
+        for i in range(self.n_strokes):
+            
+            # sample the relation type
+            p= self.DP_get_part_type(perturbed, *args)
+            r = self.DP_sample_relation_type(self.P)
+            # append to the lists
+            self.R.append(r)
+            self.P.append (p)
+        ctype = ConceptType(self.n_strokes, self.P, self.R)
+
+        return ctype
+ 
+
+    #altered function from CharacterTypeDist class, defines a character type
+    def DP_ctype (self, perturbed, *args):
+        
+        self.DP_sample_type(perturbed, *args)
+        print(self.R, self.P)
+        CT = ConceptType(self.n_strokes, self.P, self.R)
+
+        return CharacterType(self.n_strokes, CT.part_types, CT.relation_types)
+    
+    
+    #altered function from CharacterModel class, sampling the character type of the image (model) that will be generated
+    def DP_stype(self, perturbed, *args):
+         return self.DP_ctype(perturbed, *args)
+     
+        
+ ############################# GENERATE ALPHABET FUNCTION ###################################################
+
+     ##COMEÇAR A MUDAR ESTA FUNÇÃO!!!!!  
+    
+   
+    #generate alphabet will generate a set of character images related to each other - one alphabet 
+    #the function will generate an alphabet with the unperturbed model and one alphabet for the perturbed model
+    #the generation of the alphabets for both cases will use the same number of strokes, same number of sub-strokes and the the same primitives 
+    #each alphabet will have 30 characters 
+    #the sub-strokes/primitives used will be transformed into images and stores in order to have a better comprehension of what these are 
+    #the alphabets will be stored in a folder 
+    #20 tokens of each one of the character types 
+    #1 alphabet - 30 character types - 20 tokens for each character type
+    def generate_alphabet_test(self, n_strokes, nsub, alpha, n_characters, n_tokens):
+        #set the parameters to sample the primitives 
+        self.n_strokes = 1 #we begin 1 stroke and 1 subtroke in order to visualize the primitives that are being used 
+        self.nsub = torch.tensor (1)
+        subpart_idx = np.linspace(1,1212,1212, dtype = int) #creates an a array of the primitive indexes 1-1212
+        subpart_list = []
+        path = '/Users/carolinacaramelo/Desktop/alphabets'
+        os.makedirs(path)
+        for i in range(nsub): #print the primitives we are using, being able to visualize what are the sampled primitives
+       
+            subpart_sample = np.random.choice(subpart_idx)
+            print (subpart_sample ,'olá')
+            subpart_list += [subpart_sample]
+            self.subparts = subpart_sample
+            self.sample_ids(False) 
+            self.get_part_type()
+            c_type = self.known_stype()
+            c_token = self.CM.sample_token(c_type)
+            c_image = self.CM.sample_image(c_token)
+            plt.rcParams["figure.figsize"] = (10,50)
+            plt.subplot(nsub,1,i+1)
+            plt.imshow(c_image, cmap="Greys")
+            print(subpart_list , 'adeus')
+            
+        
+        plt.savefig('primitives.png')
+        primitives = img.open (r"/Users/carolinacaramelo/Desktop/TESE/Code/MasterThesis/pyBPL/pybpl/model/primitives.png") 
+        primitives.save('/Users/carolinacaramelo/Desktop/alphabets/primitives.png', 'PNG')
+        
+        #set the parameters to sample the alphabet
+        #instead of giving the n_strokes and nsub we could also randomly sample these numbers and generate more than one alphabet all at once (with different n_strokes and nsub)
+        self.n_strokes = n_strokes #know we are using these number of strokes and substrokes
+        self.nsub = torch.tensor ([nsub]) #we are going to use the same number of strokes and substrokes for both alphabets
+        self.subparts = subpart_list
+        self.alpha = alpha #for the perturbation
+        self.n_characters = n_characters #for the new logT function
+        
+        seq_list=[]
+        #generate non perturbed alphabet 
+        path = '/Users/carolinacaramelo/Desktop/alphabets/nonperturbed'
+        os.makedirs(path)
+        for i in range(n_characters):
+            
+            path_character = '/Users/carolinacaramelo/Desktop/alphabets/nonperturbed/character%i'%i
+            os.makedirs(path_character)
+            self.sample_ids(False)
+            seq_list[i] = self.seq #store the sequence of indexes 
+            self.get_part_type()
+            c_type = self.known_stype() #list of character types 
+            
+            #saves different tokens of the same character
+            for j in range(n_tokens):
+                c_token = self.CM.sample_token(c_type)
+                c_image = self.CM.sample_image(c_token)
+                plt.rcParams["figure.figsize"] = (10,50)
+                plt.subplot(1,1,1)
+                plt.imshow(c_image, cmap="Greys")
+                plt.savefig('char%s.' %j +'.png')
+                char = img.open (r"/Users/carolinacaramelo/Desktop/TESE/Code/MasterThesis/pyBPL/pybpl/model/char%s." %j+".png") 
+                char.save('/Users/carolinacaramelo/Desktop/alphabets/nonperturbed/character%i' %i + '/char%s.' %j, 'PNG')
+        
+        #generate perturbed alphabet 
+        path = '/Users/carolinacaramelo/Desktop/alphabets/perturbed'
+        os.makedirs(path)
+        for i in range(n_characters):
+            
+            path_character = '/Users/carolinacaramelo/Desktop/alphabets/perturbed/character%i'%i
+            os.makedirs(path_character)
+            self.sample_ids(True) 
+            seq_list[n_characters+1+i] = self.seq #continue storing the sequence of indexes
+            self.get_part_type()
+            c_type = self.known_stype() #list of character types 
+            
+            #saves different tokens of the same character
+            for j in range(n_tokens):
+                c_token = self.CM.sample_token(c_type)
+                c_image = self.CM.sample_image(c_token)
+                plt.rcParams["figure.figsize"] = (10,50)
+                plt.subplot(1,1,1)
+                plt.imshow(c_image, cmap="Greys")
+                plt.savefig('char%s.' %j +'.png')
+                char = img.open (r"/Users/carolinacaramelo/Desktop/TESE/Code/MasterThesis/pyBPL/pybpl/model/char%s." %j+".png") 
+                char.save('/Users/carolinacaramelo/Desktop/alphabets/perturbed/character%i' %i + '/char%s.' %j, 'PNG')
+        self.seq_ids = seq_list    
+        
+     
+        def generate_alphabet():
+            
+     
+        
+     
+        
+     
+        
+     
+        
+     
+        
+     
+        
+     

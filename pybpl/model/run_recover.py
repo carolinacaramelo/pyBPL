@@ -42,7 +42,7 @@ eng.addpath(os.path.dirname(__file__), nargout=0)
 
 def pre_recover():
     model = Perturbing ()
-    model.test_dataset(2,1,0,False)
+    model.test_dataset(torch.tensor(2),[torch.tensor(1),torch.tensor(2)],False)
     im = Image.open("./original.png")
     process_image(im, 0)
     
@@ -125,102 +125,102 @@ def main():
     err_list3= []
     
        
-    try:
-        for i in range (0,7):
-            #try:
-            model = Perturbing()
-            # call matlab fn, do inference
-            eng.demo_fit_perturbing(i,nargout=0)
-            #load image parameters
-            model.load()
-            print("done")
-            with open("./iteration%d"%i, 'w') as f:
-                f.write("PARAMETERS FROM %d" %i + "INFERENCE")
-                f.write("ids_1 {}".format(model.ids))
-                f.write("invscales_1 {}".format(model.inv_type))
-                f.write("nsub_1 {}".format(model.nsub))
-                f.write("relation category_1{}".format(model.r))
-                f.write("gpos_1 {}".format(model.gpos))
-                f.write("subid_spot_1 {}".format(model.subid_spot))
-                f.write("attach_spot_1 {}".format(model.attach_spot))
-                f.write("ncpt_1 {}".format(model.ncpt_r))
-                f.write("nprev_1{}".format(model.nprev))
-                f.write("shapes_token_1{}".format(model.shapes_token))
-                f.write("invscales_token_1{}".format(model.inv_token))
-                f.write("pos_token_1{}".format(model.pos_token))
-                f.write("eval_spot_token_1{}".format(model.eval_spot_token))
-            
+    #try:
+    for i in range (0,7):
+        #try:
+        model = Perturbing()
+        # call matlab fn, do inference
+        eng.demo_fit_perturbing(i,nargout=0)
+        #load image parameters
+        model.load()
+        print("done")
+        with open("./iteration%d"%i, 'w') as f:
+            f.write("PARAMETERS FROM %d" %i + "INFERENCE")
+            f.write("ids_1 {}".format(model.ids))
+            f.write("invscales_1 {}".format(model.inv_type))
+            f.write("nsub_1 {}".format(model.nsub))
+            f.write("relation category_1{}".format(model.r))
+            f.write("gpos_1 {}".format(model.gpos))
+            f.write("subid_spot_1 {}".format(model.subid_spot))
+            f.write("attach_spot_1 {}".format(model.attach_spot))
+            f.write("ncpt_1 {}".format(model.ncpt_r))
+            f.write("nprev_1{}".format(model.nprev))
+            f.write("shapes_token_1{}".format(model.shapes_token))
+            f.write("invscales_token_1{}".format(model.inv_token))
+            f.write("pos_token_1{}".format(model.pos_token))
+            f.write("eval_spot_token_1{}".format(model.eval_spot_token))
+        
 
-            #generate image
-            c_type = model.known_stype_recover(False)
-            c_token = model.model_sample_token_recover(c_type)
-            c_image = model.CM.sample_image(c_token)
-            plt.rcParams["figure.figsize"] = [105, 105]
-            plt.imsave("./image_generated%d"%(i+1)+".png", c_image, cmap='Greys')
-            plt.imsave("/Users/carolinacaramelo/Desktop/Thesis_results/image_generated%d"%(i+1)+".png", c_image, cmap='Greys')
-            
-            print("done2")
-            
-            imageB = Image.open("./image_generated%d"%(i+1)+".png")
-            process_image(imageB,(i+1))
-            print("done3")
-            
-            #structural similarity index
-            #image processing 
-            imageA= cv2.imread("./image0.png")
-            imageA = cv2.cvtColor(imageA, cv2.COLOR_BGR2GRAY)
-            imageB = cv2.imread("./image%d"%(i+1)+".png")
-            imageB = cv2.cvtColor(imageB, cv2.COLOR_BGR2GRAY)
-            print("done4")
-            
-         
-            err1 = ssim(imageA, imageB)
-            err_list1 += [err1]
-            print(err_list1)
+        #generate image
+        c_type = model.known_stype_recover(False)
+        c_token = model.model_sample_token_recover(c_type)
+        c_image = model.CM.sample_image(c_token)
+        plt.rcParams["figure.figsize"] = [105, 105]
+        plt.imsave("./image_generated%d"%(i+1)+".png", c_image, cmap='Greys')
+        plt.imsave("/Users/carolinacaramelo/Desktop/Thesis_results/image_generated%d"%(i+1)+".png", c_image, cmap='Greys')
         
-            err2 = mse(imageB, imageA)
-            
-            err_list2 += [err2]
-            print(err_list2)
-            
-            err3 = rmse(imageB, imageA)
-            err_list3 += [err3]
-            print(err_list3)
-            
-            iteration = i
-            
-
-        x = np.linspace(0,iteration,iteration+1).tolist()       
+        print("done2")
         
-        plt.figure(figsize=(10,10))   
-        plt.bar(x, err_list1)
-        plt.title('SSIM Original image VS. images recovered with inference')
-        plt.xticks(np.arange(0, iteration, 1))
-        plt.yticks(np.arange(0, 1, 0.05))
-        plt.xlabel('Iteration')
-        plt.ylabel('SSIM')
-        plt.show()
+        imageB = Image.open("./image_generated%d"%(i+1)+".png")
+        process_image(imageB,(i+1))
+        print("done3")
         
-        plt.figure(figsize=(10,10))
-        plt.bar(x, err_list2)
-        plt.title('MSE Original image VS. images recovered with inference')
-        plt.xticks(np.arange(0, iteration, 1))
-        plt.yticks(np.arange(0, 1000, 100))
-        plt.xlabel('Iteration')
-        plt.ylabel('MSE')
-        plt.show()
+        #structural similarity index
+        #image processing 
+        imageA= cv2.imread("./image0.png")
+        imageA = cv2.cvtColor(imageA, cv2.COLOR_BGR2GRAY)
+        imageB = cv2.imread("./image%d"%(i+1)+".png")
+        imageB = cv2.cvtColor(imageB, cv2.COLOR_BGR2GRAY)
+        print("done4")
         
-        plt.figure(figsize=(10,10))
-        plt.bar(x, err_list3)
-        plt.title('RMSE Original image VS. images recovered with inference')
-        plt.xticks(np.arange(0, iteration, 1))
-        plt.yticks(np.arange(0, 50, 10))
-        plt.xlabel('Iteration')
-        plt.ylabel('RMSE')
-        plt.show()
+     
+        err1 = ssim(imageA, imageB)
+        err_list1 += [err1]
+        print(err_list1)
     
-    except:
-        StopIteration
+        err2 = mse(imageB, imageA)
+        
+        err_list2 += [err2]
+        print(err_list2)
+        
+        err3 = rmse(imageB, imageA)
+        err_list3 += [err3]
+        print(err_list3)
+        
+        iteration = i
+        
+
+    x = np.linspace(0,iteration,iteration+1).tolist()       
+    
+    plt.figure(figsize=(10,10))   
+    plt.bar(x, err_list1)
+    plt.title('SSIM Original image VS. images recovered with inference')
+    plt.xticks(np.arange(0, iteration, 1))
+    plt.yticks(np.arange(0, 1, 0.05))
+    plt.xlabel('Iteration')
+    plt.ylabel('SSIM')
+    plt.show()
+    
+    plt.figure(figsize=(10,10))
+    plt.bar(x, err_list2)
+    plt.title('MSE Original image VS. images recovered with inference')
+    plt.xticks(np.arange(0, iteration, 1))
+    plt.yticks(np.arange(0, 1000, 100))
+    plt.xlabel('Iteration')
+    plt.ylabel('MSE')
+    plt.show()
+    
+    plt.figure(figsize=(10,10))
+    plt.bar(x, err_list3)
+    plt.title('RMSE Original image VS. images recovered with inference')
+    plt.xticks(np.arange(0, iteration, 1))
+    plt.yticks(np.arange(0, 50, 10))
+    plt.xlabel('Iteration')
+    plt.ylabel('RMSE')
+    plt.show()
+
+    #except:
+        #StopIteration
         
 
 

@@ -406,6 +406,9 @@ def perturb_quartile1():
     file.write("Median" + str(np.median(new_pT))+ "\n")
     file.close()
     np.savetxt("./new_pT",new_pT)
+    new_pT = torch.tensor(new_pT).view(1212,1212)
+    
+    
     
     
     
@@ -485,6 +488,11 @@ def perturb_quartile1():
     file.write("Median" + str(np.median(new_start))+ "\n")
     file.close()
     np.savetxt("./new_start",new_start)
+    
+    new_start = torch.tensor(new_start)
+    
+    return new_pT, new_start
+    
 
 
 def perturb_quartile2():
@@ -567,7 +575,7 @@ def perturb_quartile2():
     file.write("Median" + str(np.median(new_pT))+ "\n")
     file.close()
     np.savetxt("./new_pT",new_pT)
-    
+    new_pT = torch.tensor(new_pT).view(1212,1212)
     
     #repeat the process for the logStart matrix 
     print("STARTING FOR LOGSTART")
@@ -647,6 +655,9 @@ def perturb_quartile2():
     file.write("Median" + str(np.median(new_start))+ "\n")
     file.close()
     np.savetxt("./new_start",new_start)
+    new_start = torch.tensor(new_start)
+    
+    return new_pT, new_start
 
 def perturb_q4():
     #perturb_q4 will reeplace the between first and fourth quartile values with the magnitues that are represented in between the 4th and 5th quantile
@@ -729,6 +740,7 @@ def perturb_q4():
     file.write("Median" + str(np.median(new_pT))+ "\n")
     file.close()
     np.savetxt("./new_pT",new_pT)
+    new_pT = torch.tensor(new_pT).view(1212,1212)
    
     
    
@@ -803,6 +815,9 @@ def perturb_q4():
     file.write("Median" + str(np.median(new_start))+ "\n")
     file.close()
     np.savetxt("./new_start",new_start)
+    new_start = torch.tensor(new_start)
+    
+    return new_pT, new_start
      
 def perturb_flatenning():
     #perturb_flatenning gets the entries that have values that are lower than the mean and replaces these values
@@ -875,6 +890,7 @@ def perturb_flatenning():
     file.close()
     np.savetxt("./new_pT",new_pT)
     print("DONE2")
+    new_pT = torch.tensor(new_pT).view(1212,1212)
     
     
     
@@ -940,6 +956,9 @@ def perturb_flatenning():
     
     print("DONE4")
     
+    new_start = torch.tensor(new_start)
+    
+    return new_pT, new_start
    
     
 def perturb_more_mean():  
@@ -1091,6 +1110,7 @@ def perturb_zero():
     file.write("Median" + str(np.median(new_pT))+ "\n")
     file.close()
     np.savetxt("./new_pT",new_pT)
+    new_pT = torch.tensor(new_pT).view(1212,1212)
     
     print("STARTING FOR LOGSTART")#################################################################
     
@@ -1128,6 +1148,9 @@ def perturb_zero():
     file.write("Median" + str(np.median(new_start))+ "\n")
     file.close()
     np.savetxt("./new_start",new_start)
+    new_start= torch.tensor(new_start)
+    
+    return new_pT, new_start
    
     
         
@@ -1176,6 +1199,7 @@ def perturb_specific():
     file.write("Median" + str(np.median(new_pT))+ "\n")
     file.close()
     np.savetxt("./new_pT",new_pT)
+    new_pT = torch.tensor(new_pT).view(1212,1212)
     
     print("STARTING FOR LOGSTART")######################################################################
     
@@ -1213,9 +1237,12 @@ def perturb_specific():
     file.write("Median" + str(np.median(new_start))+ "\n")
     file.close()
     np.savetxt("./new_start",new_start)
+    new_start = torch.tensor(new_start)
+    
+    return new_pT, new_start
 
 
-def perturbing_specific2():
+def perturb_specific2():
     #perturb specific will turn every transition probability to zero except for the first three
     lib = Library (use_hist= True)
     y = lib.logT
@@ -1250,6 +1277,7 @@ def perturbing_specific2():
     file.write("Median" + str(np.median(new_pT))+ "\n")
     file.close()
     np.savetxt("./new_pT",new_pT)
+    new_pT = torch.tensor(new_pT).view(1212,1212)
     
     print("STARTING FOR LOGSTART")######################################################################
     
@@ -1284,6 +1312,9 @@ def perturbing_specific2():
     file.write("Median" + str(np.median(new_start))+ "\n")
     file.close()
     np.savetxt("./new_start",new_start)
+    new_start = torch.tensor(new_start)
+    
+    return new_pT, new_start
 
     
 def final_plots_pT():
@@ -1512,8 +1543,7 @@ def final_plots_logStart():
     
     
    
-    
-    
+
     
     
     
