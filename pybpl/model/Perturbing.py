@@ -29,14 +29,15 @@ from scipy.stats import norm
 
 
 class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
-    
+    __relation_categories = ['unihist', 'start', 'end', 'mid']
     def __init__ (self):
         # Generative process relevant variables 
         #dcan be previously defined 
         #self.ids = torch.tensor([1]) # ids of the substrokes
-        self.n_strokes = torch.tensor(7) # number of strokes, it has to be <=10
+        self.n_strokes = torch.tensor(1) # number of strokes, it has to be <=10
         self.subparts = [30,300,45,70,89] #possible ids to use when sampling the id list 
-        self.nsub = [torch.tensor (1)] #number of subparts its also <=10, in the normal case it depends on n_strokes
+        self.nsub_list = [torch.tensor (1)]
+        self.nsub = self.nsub_list[0]#number of subparts its also <=10, in the normal case it depends on n_strokes
         self.R = []
         self.P = []
         self.seq_ids = [[]]
@@ -87,6 +88,8 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         # sample scales for each sub-stroke in the sequence
         invscales = self.STD.sample_invscales_type(self.ids)
         self.invscales = invscales
+        print(self.invscales)
+        print(self.shapes)
         p = StrokeType(nsub, self.ids, self.shapes, self.invscales)
         
         return p 
@@ -98,9 +101,9 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         self.R = []
         self.P = []
         # for each part, sample part parameters
-        nsub = self.nsub.copy()
+        
         for i in range(self.n_strokes):
-            self.nsub = nsub[i]
+            self.nsub = self.nsub_list[i]
             # sample the relation type
             p= self.get_part_type(perturbed, *args)
             r = self.CTD.rdist.sample_relation_type(self.P)
@@ -547,11 +550,17 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         # optimize the character type that we sampled
         score_list = self.optimize_type(c, lr, nb_iter, eps)
         # plot log-likelihood vs. iteration
-        plt.figure()
+        plt.figure(figsize=(10,10))
         plt.plot(score_list)
         plt.ylabel('log-likelihood')
         plt.xlabel('iteration')
         plt.show()
+        
+    def optimize_test(self):
+        for i in range(10):
+            c_type = self.known_stype(False)
+            self.optimize(c_type, lr=1e-3,nb_iter= 1000,eps=1e-4 )
+       
         
 
 
@@ -595,9 +604,9 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         print('generating character...')
         model = Perturbing()
         model.n_strokes = n_strokes #number of strokes 
-        subp_list =[655,962,908,76,297] #list of primitive indexes to use 
+        subp_list =[655,962,908,76,297, 100, 15, 20, 1000, 1289, 450, 500, 1212,75,53,62] #list of primitive indexes to use 
         model.subparts = subp_list #possible ids to use when sampling the id list 
-        model.nsub = nsub #list of nsub
+        model.nsub_list = nsub #list of nsub
         
        
         c_type = model.known_stype(perturbed)
@@ -632,7 +641,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         model.n_strokes = n_strokes #number of strokes 
         subp_list =[655,962,908,76,297] #list of primitive indexes to use 
         model.subparts = subp_list #possible ids to use when sampling the id list 
-        model.nsub = nsub #list of nsub
+        model.nsub_list = nsub #list of nsub
         
        
         c_type = model.known_stype(perturbed)
@@ -1390,10 +1399,10 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
        Pmem=[]
        
        #alpha is defined the same for every DP (is it?)
-       alpha = 10
+       alpha = 3
        
        #P-mem for number of strokes 
-       base_measure = lambda: dist.Categorical(probs=self.lib.pkappa[0:3]).sample()+1  #distribution for sampling n_strokes #only allowing 4 strokes 
+       base_measure = lambda: dist.Categorical(probs=self.lib.pkappa[0:7]).sample()+1  #distribution for sampling n_strokes #only allowing 7 strokes 
        dirichlet_norm = DirichletProcessSample(base_measure=base_measure, alpha=alpha)
        Pmem +=[[dirichlet_norm]]
        
@@ -1401,7 +1410,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
        #P-mem for number of substrokes 
        Pmem_nsub = []
        for i in range(10):
-           pvec = self.lib.pmat_nsub[i][0:3] #only allowing 3 nsub
+           pvec = self.lib.pmat_nsub[i][0:8] #only allowing 8 nsub
            base_measure =  lambda: dist.Categorical(probs=pvec).sample() + 1 #distribution for sampling nsub, depending on the number of n_strokes
            dirichlet_norm = DirichletProcessSample(base_measure=base_measure, alpha=alpha)
            Pmem_nsub += [dirichlet_norm]
@@ -1467,34 +1476,11 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
             Pmem_pT+= [dirichlet_norm]
        Pmem += [Pmem_pT]        
           
- 
-       #P-mem for shapes
-       Pmem_shapes = []
-       for i in range(1212):
-           subid = torch.tensor([i])
-           shapes_mu = self.lib.shape['mu'][subid]
-           shapes_Cov = self.lib.shape['Sigma'][subid]
-           base_measure =  lambda: dist.MultivariateNormal(shapes_mu,shapes_Cov).sample() #distribution for sampling shapes, depending on previous subID
-           dirichlet_norm = DirichletProcessSample(base_measure=base_measure, alpha=alpha)
-           Pmem_shapes += [dirichlet_norm]
-       Pmem += [Pmem_shapes]
-       
-       #P-mem for scales 
-       Pmem_invscales = []
-       for i in range(1212):
-           subid = torch.tensor([i])
-           scales_theta = self.lib.scale['theta']
-           scales_con = scales_theta[:,0][subid] 
-           scales_rate = 1 / scales_theta[:,1][subid]
-           base_measure =  lambda: dist.Gamma(scales_con, scales_rate).sample() #distribution for sampling invscales, depending on previous 
-           dirichlet_norm = DirichletProcessSample(base_measure=base_measure, alpha=alpha)
-           Pmem_invscales += [dirichlet_norm]
-       Pmem += [Pmem_invscales]
-       
+
        #P-mem for relation type
        base_measure = lambda: dist.Categorical(probs=self.lib.rel['mixprob']).sample() #distribution for sampling n_strokes 
        dirichlet_norm = DirichletProcessSample(base_measure=base_measure, alpha=alpha)
-       Pmem +=[[dirichlet_norm]]
+       Pmem +=[dirichlet_norm]
        
        self.Pmem = Pmem
        return Pmem
@@ -1504,10 +1490,30 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
 # Pmem[1][...] - nsub
 # Pmem[2][0] - logstart
 # Pmem[3][...] - pT
-# Pmem[4][...] - shapes
-# Pmem[5][...]- invscales
-# Pmem[6][0] - relation type
-      
+# Pmem[4] - relation type
+
+
+    def p_mem2(self):
+        Pmem=[]
+        alpha = 0.1
+        #P-mem for shapes
+        shapes_mu = self.lib.shape['mu'][self.ids]
+        shapes_Cov = self.lib.shape['Sigma'][self.ids]
+        base_measure =  lambda: dist.MultivariateNormal(shapes_mu,shapes_Cov).sample() #distribution for sampling shapes, depending on previous subID
+        dirichlet_norm = DirichletProcessSample(base_measure=base_measure, alpha=alpha)
+        Pmem += [dirichlet_norm]
+        
+        #P-mem for invscales
+        scales_theta = self.lib.scale['theta']
+        scales_con = scales_theta[:,0][self.ids] 
+        scales_rate = 1 / scales_theta[:,1][self.ids]
+        base_measure =  lambda: dist.Gamma(scales_con, scales_rate).sample() #distribution for sampling invscales, depending on previous 
+        dirichlet_norm = DirichletProcessSample(base_measure=base_measure, alpha=alpha)
+        Pmem += [dirichlet_norm]
+        return Pmem
+    
+# Pmem[0] - shapes
+# Pmem[1]- invscales
 
 ############################ SAMPLING PARAMETERS WITH DIRICHLET PROCESS - TYPE LEVEL #################################
 
@@ -1534,8 +1540,8 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         if nprev == 0:
             category = 'unihist'
         else:
-            indx = self.Pmem[6][0]() #change is here - sampling from Pmem instead of sampling from original distribution 
-            category = self.RTD.__relation_categories[indx]
+            indx = self.Pmem[4]() #change is here - sampling from Pmem instead of sampling from original distribution 
+            category = self.__relation_categories[indx]
 
         # now sample the category-specific type-level parameters
         if category == 'unihist':
@@ -1544,7 +1550,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
             # convert (1,2) tensor to (2,) tensor
             gpos = torch.squeeze(gpos)
             r = RelationIndependent(
-                category, gpos, self.RTD.Spatial.xlim, self.Spatial.ylim
+                category, gpos, self.RTD.Spatial.xlim, self.RTD.Spatial.ylim
             )
         elif category in ['start', 'end', 'mid']:
             # sample random stroke uniformly from previous strokes. this is the
@@ -1631,12 +1637,16 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         for _ in range(self.nsub):
             # sample the sub-stroke
             ss = DP()
+            print(ss)
+            ss = ss.squeeze()
             subid.append(ss)
+            print(ss)
+            print(subid)
             # update transition probabilities; condition on previous sub-stroke
             DP = self.Pmem[3][ss]
         # convert list into tensor
         subid = torch.stack(subid)
-        self.subid = subid
+        self.ids = subid
 
         return subid
 
@@ -1654,17 +1664,14 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         shapes : (ncpt, 2, nsub) tensor
             sampled shapes of bsplines
         """
-        if self.isunif:
+        if self.STD.isunif:
             raise NotImplementedError
         # check that subid is a vector
-        assert len(self.subid.shape) == 1
+        assert len(self.ids.shape) == 1
         # record vector length
-        nsub = len(self.subid)
+        nsub = len(self.ids)
         
-        subid = self.subid.tolist()
-        shapes = torch.empty(size=(nsub,10))
-        for i in subid:
-            shapes += self.Pmem[4][i]()
+        shapes = self.p_mem2()[0]()
        
         # transpose axes (nsub, ncpt*2) -> (ncpt*2, nsub)
         shapes = shapes.transpose(0,1)
@@ -1688,16 +1695,15 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         invscales : (nsub,) tensor
             scale values for each sub-stroke
         """
-        if self.isunif:
+        if self.STD.isunif:
             raise NotImplementedError
         # check that it is a vector
-        assert len(self.subid.shape) == 1
+        assert len(self.ids.shape) == 1
+        invscales = self.p_mem2()[1]()
         
-        subid = self.subid.tolist()
-        invscales = torch.empty(size=(len(subid),1))
-        for i in subid:
-            invscales += self.Pmem[5][i]()
+       
         self.invscales= invscales  
+        print(invscales)
         return invscales
 
 
@@ -1720,11 +1726,13 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         # get the number of sub-strokes
         self.DP_sample_nsub()
         # sample the sequence of sub-stroke IDs
-        self.DP_sample_subIDs(perturbed, *args)
+        self.DP_sample_subIDs()
         # sample control points for each sub-stroke in the sequence
-        self.DP_sample_shapes_type(self.subid)
+        self.DP_sample_shapes_type()
         #sample scales for each sub-stroke in the sequence
-        self.DP_sample_invscales_type(self.subid)
+        self.DP_sample_invscales_type()
+        print(self.shapes)
+        print(self.invscales)
         
         p = StrokeType(self.nsub, self.ids, self.shapes, self.invscales)
         
@@ -1769,7 +1777,74 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
  ############################# GENERATE ALPHABET FUNCTION ###################################################
 
      ##COMEÇAR A MUDAR ESTA FUNÇÃO!!!!!  
+    def optimize_generate_alphabet(self, perturbed, *args, nb_iter):
+        lr=1e-3 #default learning rate 
+        eps=1e-4 #default tolerance for constrained optimization
+        c_type = self.DP_stype(perturbed, *args)
+        self.optimize(c_type,lr, nb_iter, eps)
+        return c_type
     
+    
+    def generate_alphabet(self, perturbed, *args, n_characters, n_tokens, nb_iter):
+        
+        self.p_mem(perturbed, *args)
+        path = '/Users/carolinacaramelo/Desktop/alphabet'
+        os.makedirs(path)
+        file = open("/Users/carolinacaramelo/Desktop/alphabet/info", 'w') 
+        
+        
+        
+        columns = 6
+        rows = n_characters // columns + (n_characters % columns > 0)
+        #fig ,ax= plt.subplots(nrows=rows,ncols=columns,figsize=(105,105))
+        fig = plt.figure(figsize=(105,105))
+
+        count_images=0
+        
+        for i in range(n_characters):
+            
+            path_character = '/Users/carolinacaramelo/Desktop/alphabet/character%i'%i
+            os.makedirs(path_character)
+            c_type = self.DP_stype(perturbed, *args)
+            #c_type = self.optimize_generate_alphabet(perturbed, *args, nb_iter=nb_iter)
+            
+            self.display_type(c_type)
+            file.write("character" + str(i) + "\n")
+            file.write("num strokes:" + str(c_type.k)+ "\n")
+            for l in range(c_type.k):
+                file.write("Stroke #:" + str(l)+ "\n")
+                file.write("\tsub-stroke ids:" + str(list(c_type.part_types[l].ids.numpy()))+ "\n")
+                file.write("\\trelation category:" + str(c_type.relation_types[l].category)+ "\n")
+            file.write("----END CHARACTER TYPE INFO----" + "\n")
+        
+            
+            #saves different tokens of the same character
+            for j in range(n_tokens):
+                c_token = self.CM.sample_token(c_type)
+                c_image = self.CM.sample_image(c_token)
+                
+                plt.rcParams["figure.figsize"] = [105, 105]
+                plt.imsave('/Users/carolinacaramelo/Desktop/alphabet/character%i' %i + '/char%s.' %j+".png", c_image, cmap='Greys')
+              
+        
+           
+            try:
+                count_images+=1
+                c_token = self.CM.sample_token(c_type)
+                c_image = self.CM.sample_image(c_token)
+                fig.add_subplot(rows,columns,count_images)
+                plt.imshow(c_image,cmap='Greys')
+                
+            except:
+                pass           
+            
+        fig.tight_layout()
+        fig.savefig('/Users/carolinacaramelo/Desktop/alphabet/alphabet.png', cmap='Greys') 
+        file.close()
+            
+            
+     
+        
    
     #generate alphabet will generate a set of character images related to each other - one alphabet 
     #the function will generate an alphabet with the unperturbed model and one alphabet for the perturbed model
@@ -1779,44 +1854,18 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
     #the alphabets will be stored in a folder 
     #20 tokens of each one of the character types 
     #1 alphabet - 30 character types - 20 tokens for each character type
-    def generate_alphabet_test(self, n_strokes, nsub, alpha, n_characters, n_tokens):
-        #set the parameters to sample the primitives 
-        self.n_strokes = 1 #we begin 1 stroke and 1 subtroke in order to visualize the primitives that are being used 
-        self.nsub = torch.tensor (1)
-        subpart_idx = np.linspace(1,1212,1212, dtype = int) #creates an a array of the primitive indexes 1-1212
-        subpart_list = []
-        path = '/Users/carolinacaramelo/Desktop/alphabets'
-        os.makedirs(path)
-        for i in range(nsub): #print the primitives we are using, being able to visualize what are the sampled primitives
+    def generate_alphabet_test(self,perturbed, n_strokes, nsub, n_characters, n_tokens):
        
-            subpart_sample = np.random.choice(subpart_idx)
-            print (subpart_sample ,'olá')
-            subpart_list += [subpart_sample]
-            self.subparts = subpart_sample
-            self.sample_ids(False) 
-            self.get_part_type()
-            c_type = self.known_stype()
-            c_token = self.CM.sample_token(c_type)
-            c_image = self.CM.sample_image(c_token)
-            plt.rcParams["figure.figsize"] = (10,50)
-            plt.subplot(nsub,1,i+1)
-            plt.imshow(c_image, cmap="Greys")
-            print(subpart_list , 'adeus')
-            
-        
-        plt.savefig('primitives.png')
-        primitives = img.open (r"/Users/carolinacaramelo/Desktop/TESE/Code/MasterThesis/pyBPL/pybpl/model/primitives.png") 
-        primitives.save('/Users/carolinacaramelo/Desktop/alphabets/primitives.png', 'PNG')
         
         #set the parameters to sample the alphabet
         #instead of giving the n_strokes and nsub we could also randomly sample these numbers and generate more than one alphabet all at once (with different n_strokes and nsub)
         self.n_strokes = n_strokes #know we are using these number of strokes and substrokes
-        self.nsub = torch.tensor ([nsub]) #we are going to use the same number of strokes and substrokes for both alphabets
-        self.subparts = subpart_list
-        self.alpha = alpha #for the perturbation
+        self.nsub_list = nsub #we are going to use the same number of strokes and substrokes for both alphabets
+        self.subparts = [10,50,200,234,245,670,896,345,800,967,1200]
+       
         self.n_characters = n_characters #for the new logT function
         
-        seq_list=[]
+        
         #generate non perturbed alphabet 
         path = '/Users/carolinacaramelo/Desktop/alphabets/nonperturbed'
         os.makedirs(path)
@@ -1824,57 +1873,22 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
             
             path_character = '/Users/carolinacaramelo/Desktop/alphabets/nonperturbed/character%i'%i
             os.makedirs(path_character)
-            self.sample_ids(False)
-            seq_list[i] = self.seq #store the sequence of indexes 
-            self.get_part_type()
-            c_type = self.known_stype() #list of character types 
-            
+           
+            c_type = self.known_stype(perturbed) #list of character types 
+            self.display_type(c_type)
             #saves different tokens of the same character
             for j in range(n_tokens):
                 c_token = self.CM.sample_token(c_type)
                 c_image = self.CM.sample_image(c_token)
-                plt.rcParams["figure.figsize"] = (10,50)
-                plt.subplot(1,1,1)
+                plt.rcParams["figure.figsize"] = (105,105)
                 plt.imshow(c_image, cmap="Greys")
                 plt.savefig('char%s.' %j +'.png')
                 char = img.open (r"/Users/carolinacaramelo/Desktop/TESE/Code/MasterThesis/pyBPL/pybpl/model/char%s." %j+".png") 
                 char.save('/Users/carolinacaramelo/Desktop/alphabets/nonperturbed/character%i' %i + '/char%s.' %j, 'PNG')
         
-        #generate perturbed alphabet 
-        path = '/Users/carolinacaramelo/Desktop/alphabets/perturbed'
-        os.makedirs(path)
-        for i in range(n_characters):
-            
-            path_character = '/Users/carolinacaramelo/Desktop/alphabets/perturbed/character%i'%i
-            os.makedirs(path_character)
-            self.sample_ids(True) 
-            seq_list[n_characters+1+i] = self.seq #continue storing the sequence of indexes
-            self.get_part_type()
-            c_type = self.known_stype() #list of character types 
-            
-            #saves different tokens of the same character
-            for j in range(n_tokens):
-                c_token = self.CM.sample_token(c_type)
-                c_image = self.CM.sample_image(c_token)
-                plt.rcParams["figure.figsize"] = (10,50)
-                plt.subplot(1,1,1)
-                plt.imshow(c_image, cmap="Greys")
-                plt.savefig('char%s.' %j +'.png')
-                char = img.open (r"/Users/carolinacaramelo/Desktop/TESE/Code/MasterThesis/pyBPL/pybpl/model/char%s." %j+".png") 
-                char.save('/Users/carolinacaramelo/Desktop/alphabets/perturbed/character%i' %i + '/char%s.' %j, 'PNG')
-        self.seq_ids = seq_list    
-        
+
      
-        def generate_alphabet():
-            
-     
-        
-     
-        
-     
-        
-     
-        
+
      
         
      
