@@ -42,7 +42,7 @@ eng.addpath(os.path.dirname(__file__), nargout=0)
 
 def pre_recover():
     model = Perturbing ()
-    model.test_dataset(torch.tensor(2),[torch.tensor(2),torch.tensor(2)],False)
+    model.test_dataset(torch.tensor(3),[torch.tensor(2),torch.tensor(2),torch.tensor(3)],False)
     im = Image.open("./original.png")
     process_image(im, 0)
     

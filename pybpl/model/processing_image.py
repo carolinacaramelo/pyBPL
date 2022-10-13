@@ -110,7 +110,9 @@ def process_image(im, num):
     
     result = skimage.exposure.rescale_intensity(blur, in_range=(127.5,255), out_range=(0,255))
     
-    cv2.imwrite("./processed/image%d"%num+".png", result)
+    cv2.imwrite("./image%d"%num+".png", result) 
+    #add processed folder to directory when doing inference 
+    #when doing inference for the evaluation set in one shot classification - maintain
     
     cv2.waitKey(1000)
     cv2.destroyAllWindows()

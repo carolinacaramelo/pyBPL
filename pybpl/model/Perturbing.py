@@ -16,7 +16,9 @@ from pybpl.model import token_dist
 from pybpl.objects import StrokeType, ConceptType, CharacterType, StrokeToken,ConceptToken,CharacterToken
 from pybpl.objects import (RelationType, RelationIndependent, RelationAttach,
                        RelationAttachAlong, RelationToken)
-from statistics import *
+import sys 
+sys.path.insert(1, '/Users/carolinacaramelo/Desktop/TESE/Code/MasterThesis/pyBPL/pybpl/library')
+import statistics
 from DP import DirichletProcessSample
 import torch
 import torch.distributions as dist
@@ -41,11 +43,6 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         self.R = []
         self.P = []
         self.seq_ids = [[]]
-        
-       
-       
-       
-
 
         # initializaton of class inheritances
         self.lib = Library(use_hist = True)
@@ -137,21 +134,21 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         # sub-stroke sequence is a list, this is the list of ids that we will sample for one stroke, list of ids of substrokes for one stroke
         ids =[]
         if perturbed:
-            if args == "perturb_quartile1":
+            if  "perturb_quartile1" in args:
                 #set the initial transition probabilities 
-                pT = perturb_quartile1()[1] #perturbed logstart
-            if args == "perturb_quartile2":
-                pT = perturb_quartile2()[1] #perturbed logstart
-            if args == "perturb_q4":
-                pT = perturb_q4()[1]
-            if args == "perturb_flatenning":
-                pT = perturb_flatenning()[1]
-            if args == "perturb_zero":
-                pT = perturb_zero()[1]
-            if args == "perturb_specific":
-                pT = perturb_specific()[1]
-            if args == "perturb_specific2":
-                pT = perturb_specific2()[1]
+                pT = statistics.perturb_quartile1()[1] #perturbed logstart
+            if  "perturb_quartile2" in args:
+                pT = statistics.perturb_quartile2()[1] #perturbed logstart
+            if "perturb_q4" in args:
+                pT = statistics.perturb_q4()[1]
+            if "perturb_flatenning" in args:
+                pT = statistics.perturb_flatenning()[1]
+            if "perturb_zero" in args:
+                pT = statistics.perturb_zero()[1]
+            if "perturb_specific" in args:
+                pT = statistics.perturb_specific()[1]
+            if "perturb_specific2" in args:
+                pT = statistics.perturb_specific2()[1]
       
             pT = self.truncate_start(pT)
             #step through and sample 'nsub' sub-strokes
@@ -228,20 +225,20 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
             
 
     def truncateT_perturbed (self, *args): #in gaussian noise the alpha can be sqrt(variance) #perturbar antes a matrix logT, perturbar sem normalizar na logT 
-        if args == "perturb_quartile1":
+        if "perturb_quartile1" in args:
             #set the initial transition probabilities 
             pT = statistics.perturb_quartile1()[0] #perturbed logstart
-        if args == "perturb_quartile2":
+        if "perturb_quartile2" in args:
             pT = statistics.perturb_quartile2()[0] #perturbed logstart
-        if args == "perturb_q4":
+        if "perturb_q4" in args:
             pT = statistics.perturb_q4()[0]
-        if args == "perturb_flatenning":
+        if "perturb_flatenning" in args:
             pT = statistics.perturb_flatenning()[0]
-        if args == "perturb_zero":
+        if "perturb_zero" in args:
             pT = statistics.perturb_zero()[0]
-        if args == "perturb_specific":
+        if "perturb_specific" in args:
             pT = statistics.perturb_specific()[0]
-        if args == "perturb_specific2":
+        if "perturb_specific2" in args:
             pT = statistics.perturb_specific2()[0]
             
         m = np.isin([i for i in range(len(pT))], self.subparts)
@@ -585,7 +582,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
             file.write("----END CHARACTER TYPE INFO----")
         file.close()
 
-    def test_dataset (self,n_strokes, nsub, perturbed):
+    def test_dataset (self,n_strokes, nsub, perturbed, *args):
         """
         This function allows us to generate a new character type
         generates a character type given previously the number of strokes, the number of substrokes for each stroke and the indexes of the primitives 
@@ -604,12 +601,12 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         print('generating character...')
         model = Perturbing()
         model.n_strokes = n_strokes #number of strokes 
-        subp_list =[655,962,908,76,297, 100, 15, 20, 1000, 1289, 450, 500, 1212,75,53,62] #list of primitive indexes to use 
+        subp_list =[5,13,24,37,44,53,69,78,81,90,99,123,132,144,156,245,267,345,453,444,456,489,564,578,671,788,753,897,908,1000] #list of primitive indexes to use 
         model.subparts = subp_list #possible ids to use when sampling the id list 
         model.nsub_list = nsub #list of nsub
         
        
-        c_type = model.known_stype(perturbed)
+        c_type = model.known_stype(perturbed, *args)
         model.display_type(c_type)
         c_token = model.CM.sample_token(c_type)
         c_image = model.CM.sample_image(c_token)
@@ -617,7 +614,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         plt.imshow(c_image, cmap='Greys')
         plt.imsave('./original.png', c_image, cmap='Greys')
 
-    def test_dataset2(self,n_strokes, nsub, perturbed ,nb_iter):
+    def test_dataset2(self,n_strokes, nsub, perturbed ,nb_iter, *args):
         """
         This function allows us to generate a new character type
         generates a character type given previously the number of strokes, the number of substrokes for each stroke and the indexes of the primitives 
@@ -644,7 +641,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         model.nsub_list = nsub #list of nsub
         
        
-        c_type = model.known_stype(perturbed)
+        c_type = model.known_stype(perturbed, *args)
         model.display_type(c_type)
 
         # optimize the character type that we sampled
@@ -1387,7 +1384,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
 ####### GENERATE ALPHABET #######################################################################################
 
  
-    def p_mem(self, perturbed, *args): #perturbed, *args - fazer no final para pT 
+    def p_mem(self, perturbed, *args, alpha): #perturbed, *args - fazer no final para pT 
        #this function will transform the learnt probability distributions of the BPL parameters in a new stochastic memoized distribution
        #P-mem, through a Dirichlet Process, in order to create dependencies between the different characters of a new generated alphabet. 
        #P-mem will induce dependencies between previously independent samples. This new "memoized" procedures will define a set of probability distributions 
@@ -1399,7 +1396,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
        Pmem=[]
        
        #alpha is defined the same for every DP (is it?)
-       alpha = 3
+       #alpha = 3
        
        #P-mem for number of strokes 
        base_measure = lambda: dist.Categorical(probs=self.lib.pkappa[0:7]).sample()+1  #distribution for sampling n_strokes #only allowing 7 strokes 
@@ -1419,21 +1416,21 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
        #P-mem for GENERATE STROKES - includes subids, shapes and scales of strokes 
        #P-mem for subIDS - logStart
        if perturbed:
-           if args == "perturb_quartile1":
+           if "perturb_quartile1" in args:
                #set the initial transition probabilities 
-               logStart = perturb_quartile1()[1] #perturbed logstart
-           if args == "perturb_quartile2":
-               logStart = perturb_quartile2()[1] #perturbed logstart
-           if args == "perturb_q4":
-               logStart = perturb_q4()[1]
-           if args == "perturb_flatenning":
-               logStart = perturb_flatenning()[1]
-           if args == "perturb_zero":
-               logStart = perturb_zero()[1]
-           if args == "perturb_specific":
-               logStart = perturb_specific()[1]
-           if args == "perturb_specific2":
-               logStart = perturb_specific2()[1]
+               logStart = statistics.perturb_quartile1()[1] #perturbed logstart
+           if "perturb_quartile2" in args:
+               logStart = statistics.perturb_quartile2()[1] #perturbed logstart
+           if "perturb_q4" in args:
+               logStart = statistics.perturb_q4()[1]
+           if "perturb_flatenning" in args:
+               logStart = statistics.perturb_flatenning()[1]
+           if  "perturb_zero" in args:
+               logStart = statistics.perturb_zero()[1]
+           if "perturb_specific" in args:
+               logStart = statistics.perturb_specific()[1]
+           if  "perturb_specific2" in args:
+               logStart = statistics.perturb_specific2()[1]
        
        else: 
            logStart = torch.exp(self.lib.logStart)
@@ -1446,21 +1443,24 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
        #P-mem for subIDS - pT - including perturbations
        Pmem_pT = []
        if perturbed:
-           if args == "perturb_quartile1":
+           if "perturb_quartile1" in args:
                #set the initial transition probabilities 
-               pT = perturb_quartile1()[0] #perturbed logstart
-           if args == "perturb_quartile2":
-               pT = perturb_quartile2()[0] #perturbed logstart
-           if args == "perturb_q4":
-               pT = perturb_q4()[0]
-           if args == "perturb_flatenning":
-               pT = perturb_flatenning()[0]
-           if args == "perturb_zero":
-               pT = perturb_zero()[0]
-           if args == "perturb_specific":
-               pT = perturb_specific()[0]
-           if args == "perturb_specific2":
-               pT = perturb_specific2()[0]
+               pT = statistics.perturb_quartile1()[0] 
+               print(pT)#perturbed logstart
+           if "perturb_quartile2" in args:
+               pT = statistics.perturb_quartile2()[0] #perturbed logstart
+           if "perturb_q4" in args:
+               pT = statistics.perturb_q4()[0]
+           if "perturb_flatenning" in args:
+               pT = statistics.perturb_flatenning()[0]
+           if "perturb_zero" in args:
+               pT = statistics.perturb_zero()[0]
+           if "perturb_specific" in args:
+               pT = statistics.perturb_specific()[0]
+           if "perturb_specific2" in args:
+               pT = statistics.perturb_specific2()[0]
+           print(pT)
+        
            self.pT = pT
        else:
             logR = self.lib.logT
@@ -1493,9 +1493,9 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
 # Pmem[4] - relation type
 
 
-    def p_mem2(self):
+    def p_mem2(self, alpha):
         Pmem=[]
-        alpha = 0.1
+        #alpha = 0.1
         #P-mem for shapes
         shapes_mu = self.lib.shape['mu'][self.ids]
         shapes_Cov = self.lib.shape['Sigma'][self.ids]
@@ -1806,7 +1806,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
             path_character = '/Users/carolinacaramelo/Desktop/alphabet/character%i'%i
             os.makedirs(path_character)
             c_type = self.DP_stype(perturbed, *args)
-            #c_type = self.optimize_generate_alphabet(perturbed, *args, nb_iter=nb_iter)
+            #c_type = self.optimize_generate_alphabet(perturbed, *args, nb_iter=nb_iter) #still don't know what is happening here - make it work
             
             self.display_type(c_type)
             file.write("character" + str(i) + "\n")
@@ -1885,12 +1885,58 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
                 plt.savefig('char%s.' %j +'.png')
                 char = img.open (r"/Users/carolinacaramelo/Desktop/TESE/Code/MasterThesis/pyBPL/pybpl/model/char%s." %j+".png") 
                 char.save('/Users/carolinacaramelo/Desktop/alphabets/nonperturbed/character%i' %i + '/char%s.' %j, 'PNG')
-        
-
      
 
-     
+    def test_alpha(self,n_samples):
+        alpha = [10,5,3,1,0.5,0.1, 0.001]
+        nsub =[]
+        ids = []
+       
+        fig, axs = plt.subplots(1, 1, figsize =(10, 10), tight_layout = True)
+        fig2, axs2 = plt.subplots(1, 1, figsize =(10, 10), tight_layout = True)
+        fig3, axs3 = plt.subplots(1, 1, figsize =(10, 10), tight_layout = True)
+         
+        for alpha in alpha:
+            n_strokes = []
+            self.p_mem(False, alpha = alpha)
+            for i in range(n_samples):
+                n = self.DP_sample_k().item()
+                n_strokes += [n]
+                ns = self.DP_sample_nsub().item()
+                nsub += [ns]
+                #subid = self.DP_sample_subIDs().item()
+                #ids += [subid]
+                
+           
+            
+            axs.hist(n_strokes, bins= 10, density= True)
+            plt.xlabel("n_strokes")
+            plt.ylabel("Counts")
+            plt.title('Sample distribution of number of strokes')
+            # Show plot
+            plt.show()
+            
+            # Creating histogram
+           
+            axs2.hist(nsub, bins= 10, density= True)
+            plt.xlabel("nsub")
+            plt.ylabel("Counts")
+            plt.title('Sample distribution of number of substrokes')
+            # Show plot
+            plt.show()
+            
+            # Creating histogram
+            
+            #axs3.hist(ids, bins= 100, density= True)
+            #plt.xlabel("Primitive id")
+            #plt.ylabel("Counts")
+            #plt.title('Sample distribution of primitives')
+            # Show plot
+            #plt.show()
+ 
         
+     
+
      
         
      

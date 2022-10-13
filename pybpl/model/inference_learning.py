@@ -8,13 +8,14 @@ Created on Fri Sep 30 11:35:44 2022
 
 # import the modules
 import os
+import warnings
+import matlab.engine
 from processing_image import process_image
 from Perturbing import Perturbing
 from pybpl.library import Library
 from PIL import Image
-import warnings
-import matlab.engine
 import torch
+import numpy as np
 
 #start matlab engine - run inference code 
 
@@ -45,7 +46,7 @@ def list_files(dir):
 
 def inference():
     model = Perturbing()
-    dir = '/Users/carolinacaramelo/Desktop/treinos/alphabet_test1' #put here the directory that we are supposed to use - where tha alphabets are stored
+    dir = '/Users/carolinacaramelo/Desktop/alphabet' #put here the directory that we are supposed to use - where tha alphabets are stored
     r = list_files(dir)
     num = 1
     list_ids = []
@@ -98,9 +99,32 @@ def empirical_countings():
     print(pT)
     print(logstart)
     
-    return logstart, pT
+    return logstart, pT, list_ids
     
                 
-                
+def main(): #provavelmente vou ter de fazer um except aqui porque existe uma entrada da logstart que é infinita 
+    lib = Library (use_hist=True)
+    #getting original logstart matrix 
+    original_logstart = lib.logStart
+    #getting original pT matrix 
+    logT = lib.logT
+    R = torch.exp(logT)
+    original_pT = R / torch.sum(R)
+    
+    #doing inference and estimating new matrices 
+    results = empirical_countings() #empirical counting does the inference inside
+    new_logstart = results[0]
+    new_pT = results[1]
+    
+    #final matrices 
+    final_logstart = (original_logstart + new_logstart)/2 #still have to decide how to do this 
+    final_pT = (original_pT + new_pT)/2
+    
+    np.savetxt("./final_logstart", final_logstart)
+    np.savetxt("./final_pT", final_pT)
+    
+    return final_logstart, final_pT #talvez faça sentido guardar as matrizes no bloco de notas e depois fazer upload onde for necessário
+    
+                 
         
     
