@@ -77,6 +77,8 @@ def tsne():
     ax.set_aspect('equal')
     ax.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.0)
     
+    return tsne_result
+    
 
 
 def distance_matrix():
@@ -151,7 +153,7 @@ def tsne_optimized():
     embedding_done = _t_sne._gradient_descent(_t_sne._kl_divergence,
                                               embedding_init,
                                               0,
-                                              n_samples,
+                                              1000,
                                               kwargs=kl_kwargs)
      
     # Get first and second TSNE components into a 2D array
