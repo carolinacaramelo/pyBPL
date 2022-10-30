@@ -1248,13 +1248,24 @@ def perturb_specific2():
     y = lib.logT
     y = torch.exp(y)
     y1 = (y/torch.sum(y))
+    pT = y1
     y = y1.numpy()
     y = y.flatten()
     
+    v, i = torch.topk(pT.flatten(), 10000, largest=False)
+    indexes= np.array(np.unravel_index(i.numpy(), pT.shape)).T
+
     new_pT = np.copy(y)
     
-    for i in range(3,len(y)):
+    for i in range(0,len(y)):
         new_pT[i] = 0
+    
+    new_pT = torch.tensor(new_pT).view(1212,1212)   
+    
+    for i in range(int(indexes.size/2)):
+        new_pT[indexes[i][0]][indexes[i][1]] = pT[indexes[i][0]][indexes[i][1]]
+    
+    new_pT = new_pT.numpy().flatten()
 
     #normalize new pT matrix 
     new_pT = new_pT/new_pT.sum()
@@ -1266,9 +1277,7 @@ def perturb_specific2():
     fig, ax = plt.subplots(figsize=(10, 10))
     sns.histplot(new_pT, stat='probability', ax=ax, bins=100, color='#1f77b4')
     plt.title('Histogram new perturbed pT matrix magnitudes')
-    
-    
-    
+
     file = open("./statistics_new_pT", 'w') 
     file.write("new_pT statistics \n")
     file.write("Maximum prob" + str(np.amax(new_pT))+ "\n")
@@ -1283,17 +1292,32 @@ def perturb_specific2():
     
     y = lib.logStart
     y1 = torch.exp(y)
+    start = y1
     y = y1.numpy()
     y = y.flatten()
+   
 
     
-    new_start = np.copy(y)
+    v, i = torch.topk(start.flatten(), 500, largest=False)
+    indexes= np.array(np.unravel_index(i.numpy(), start.shape)).T
    
-    for i in range(3,len(y)):
-        new_start[i] = 0
+
+    new_start = np.copy(y)
     
-    #normalize new start matrix 
-    new_start= new_start/new_start.sum()
+    for i in range(0,len(y)):
+        new_start[i] = 0
+        
+
+    new_start = torch.tensor(new_start).view(1212)   
+  
+    
+    for i in range(int(indexes.size)):
+        new_start[indexes[i][0]] = start[indexes[i][0]]
+    
+    new_start = new_start.numpy().flatten()
+
+    #normalize new pT matrix 
+    new_start = new_start/new_start.sum()
     
     print(new_start.sum())
     print(new_start)
@@ -1315,6 +1339,86 @@ def perturb_specific2():
     new_start = torch.tensor(new_start)
     
     return new_pT, new_start
+
+def perturbing_specific3():
+    #perturb specific will turn every transition probability to zero except for the first three
+    lib = Library (use_hist= True)
+    y = lib.logT
+    y = torch.exp(y)
+    y1 = (y/torch.sum(y))
+    pT = y1
+    y = y1.numpy()
+    y = y.flatten()
+    
+    v, i = torch.topk(pT.flatten(), 1000, largest=True)
+    indexes= np.array(np.unravel_index(i.numpy(), pT.shape)).T
+    
+    new_pT = np.copy(pT)
+    for i in range(int(indexes.size/2)):
+        new_pT[indexes[i][0]][indexes[i][1]] = 0
+
+
+    #normalize new pT matrix 
+    new_pT = new_pT/new_pT.sum()
+    
+    print(new_pT.sum())
+    print(new_pT)
+    
+    #plotting new pt
+    fig, ax = plt.subplots(figsize=(10, 10))
+    sns.histplot(new_pT, stat='probability', ax=ax, bins=100, color='#1f77b4')
+    plt.title('Histogram new perturbed pT matrix magnitudes')
+
+    file = open("./statistics_new_pT", 'w') 
+    file.write("new_pT statistics \n")
+    file.write("Maximum prob" + str(np.amax(new_pT))+ "\n")
+    file.write("Minimum prob" + str(np.amin(new_pT))+ "\n")
+    file.write("Mean" + str(np.mean(new_pT))+ "\n")
+    file.write("Median" + str(np.median(new_pT))+ "\n")
+    file.close()
+    np.savetxt("./new_pT",new_pT)
+    new_pT = torch.tensor(new_pT).view(1212,1212)
+    
+    ##### PARA LOGSTART ##############
+    
+    y = lib.logStart
+    y1 = torch.exp(y)
+    start = y1
+    y = y1.numpy()
+    y = y.flatten()
+    
+    v, i = torch.topk(start.flatten(), 100, largest=True)
+    indexes= np.array(np.unravel_index(i.numpy(), start.shape)).T
+    
+    new_start = np.copy(start)
+    for i in range(int(indexes.size)):
+        new_start[indexes[i][0]] = 0
+  
+
+    #normalize new pT matrix 
+    new_start = new_start/new_start.sum()
+    
+    print(new_start.sum())
+    print(new_start)
+    
+    #plotting new start
+    fig, ax = plt.subplots(figsize=(10, 10))
+    sns.histplot(new_start, stat='probability', ax=ax, bins=100, color='#1f77b4')
+    plt.title('Histogram new logStart matrix magnitudes')
+    #plt.xlim(0,0.01)
+    
+    file = open("./statistics_new_start", 'w') 
+    file.write("new_start statistics \n")
+    file.write("Maximum prob" + str(np.amax(new_start))+ "\n")
+    file.write("Minimum prob" + str(np.amin(new_start))+ "\n")
+    file.write("Mean" + str(np.mean(new_start))+ "\n")
+    file.write("Median" + str(np.median(new_start))+ "\n")
+    file.close()
+    np.savetxt("./new_start",new_start)
+    new_start = torch.tensor(new_start)
+    
+    return new_pT, new_start
+
 
     
 def final_plots_pT():

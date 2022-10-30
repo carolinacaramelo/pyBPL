@@ -11,6 +11,7 @@ import numpy as np
 from pybpl.library import Library
 from pybpl.splines import bspline_gen_s
 from pybpl.model import CharacterModel
+import optimize_type
 from pybpl.model  import type_dist
 from pybpl.model import token_dist
 from pybpl.objects import StrokeType, ConceptType, CharacterType, StrokeToken,ConceptToken,CharacterToken
@@ -19,6 +20,7 @@ from pybpl.objects import (RelationType, RelationIndependent, RelationAttach,
 import sys 
 sys.path.insert(1, '/Users/carolinacaramelo/Desktop/TESE/Code/MasterThesis/pyBPL/pybpl/library')
 import statistics
+import diffusionbased_perturbations
 from DP import DirichletProcessSample
 import torch
 import torch.distributions as dist
@@ -43,7 +45,6 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         self.R = []
         self.P = []
         self.seq_ids = [[]]
-
         # initializaton of class inheritances
         self.lib = Library(use_hist = True)
         self.STD = StrokeTypeDist(self.lib)
@@ -59,7 +60,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         
   
         
-#### FUNCTIONS FOR SAMPLING THE CHARACTER MODEL TYPE ################################################################################################
+#### FUNCTIONS FOR SAMPLING THE CHARACTER MODEL TYPE (KNOWING THE PRIMITIVES) ################################################################################################
     
     #altered function of StrokeTypeDist class, defines a stroke type 
     def get_part_type (self, perturbed, *args):
@@ -212,17 +213,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         R[indices2,:]=0
        
         return R
-    
-    #def M_perturbation(self,str, alpha): #vamos ter de mudar esta função para corresponder às funções desenvolvidas em statistics - podemos apagar isto
-        #logR = self.lib.logT
-        #s = list(logR.size())
-        #if str == "Gaussian":
-            #M_perturbation = (alpha**0.5) * torch.randn(s[0], s[1]) #The function torch.randn produces a tensor with elements drawn from a Gaussian distribution of zero mean and unit variance. Multiply by sqrt(0.1) to have the desired variance.
-        #if str == "Dirichlet":
-        #if str == "Poisson":
-        #if str == "Exponential":
-        #return M_perturbation
-            
+
 
     def truncateT_perturbed (self, *args): #in gaussian noise the alpha can be sqrt(variance) #perturbar antes a matrix logT, perturbar sem normalizar na logT 
         if "perturb_quartile1" in args:
@@ -472,94 +463,23 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         return ll
     
 
-######## OPTIMIZING CHARACTER MODEL TYPE ##################################
-    #adapted optimize character type to perturbing 
-    def optimize_type(self, c, lr, nb_iter, eps, show_examples=True):
-        """
-        Take a character type and optimize its parameters to maximize the
-        likelihood under the prior, using gradient descent
-
-        Parameters
-        ----------
-        model : CharacterModel
-        c : CharacterType
-        lr : float
-        nb_iter : int
-        eps : float
-        show_examples : bool
-
-        Returns
-        -------
-        score_list : list of float
-
-        """
-        # round nb_iter to nearest 10
-        nb_iter = np.round(nb_iter, -1)
-        # get optimizable variables & their bounds
-        c.train()
-        params = c.parameters()
-        lbs = c.lbs(eps)
-        ubs = c.ubs(eps)
-        # optimize the character type
-        score_list = []
-        optimizer = torch.optim.Adam(params, lr=lr)
-        if show_examples:
-           fig, axes = plt.subplots(10, 4, figsize=(4, 10))
-        interval = int(nb_iter / 10)
-        for idx in range(nb_iter):
-            if idx % interval == 0:
-                # print optimization progress
-                print('iteration #%i' % idx)
-                if show_examples:
-                    # sample 4 tokens of current type (for visualization)
-                    for i in range(4):
-                        token =self.CM.sample_token(c)
-                        img = self.CM.sample_image(token)
-                        axes[idx//interval, i].imshow(img, cmap='Greys')
-                        axes[idx//interval, i].tick_params(
-                            which='both',
-                            bottom=False,
-                            left=False,
-                            labelbottom=False,
-                            labelleft=False
-                        )
-                    axes[idx//interval, 0].set_ylabel('%i' % idx)
-            # zero optimizer gradients
-            optimizer.zero_grad()
-            # compute log-likelihood of the token
-            score = self.score_type(c)
-            score_list.append(score.item())
-            # gradient descent step (minimize loss)
-            loss = -score
-            loss.backward()
-            optimizer.step()
-            # project all parameters into allowable range
-            with torch.no_grad():
-                for param, lb, ub in zip(params, lbs, ubs):
-                    if torch.is_tensor(lb):
-                        torch.max(param, lb, out=param)
-                    if torch.is_tensor(ub):
-                        torch.min(param, ub, out=param)
-
-        return score_list
+######## OPTIMIZING CHARACTER MODEL TYPE ###################################################################################
+   
     
-    def optimize(self,c, lr, nb_iter, eps):
+    def optimize(self,c, lr, nb_iter, eps, character):
         # optimize the character type that we sampled
-        score_list = self.optimize_type(c, lr, nb_iter, eps)
+        model = self.CM
+        score_list = optimize_type.optimize_type(model,c=c, lr=lr, nb_iter=nb_iter, eps=1e-4,show_examples=True)
+        print(score_list)
         # plot log-likelihood vs. iteration
         plt.figure(figsize=(10,10))
         plt.plot(score_list)
         plt.ylabel('log-likelihood')
         plt.xlabel('iteration')
+        plt.title("Score optimization character type %d" %character)
         plt.show()
         
-    def optimize_test(self):
-        for i in range(10):
-            c_type = self.known_stype(False)
-            self.optimize(c_type, lr=1e-3,nb_iter= 1000,eps=1e-4 )
-       
-        
-
+        return c
 
 ## FUNCTIONS TO GENERATE NEW DATA/ NEW CHARACTERS  #######################################################################################################
 
@@ -582,7 +502,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
             file.write("----END CHARACTER TYPE INFO----")
         file.close()
 
-    def test_dataset (self,n_strokes, nsub, perturbed, *args):
+    def test_dataset (self,n_strokes, nsub, perturbed, *args, nb_iter):#change nb_iter in run recover
         """
         This function allows us to generate a new character type
         generates a character type given previously the number of strokes, the number of substrokes for each stroke and the indexes of the primitives 
@@ -597,6 +517,9 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         perturbed = bool
 
         """
+        lr=1e-3 #default learning rate 
+        eps=1e-4 #default tolerance for constrained optimization
+        
 
         print('generating character...')
         model = Perturbing()
@@ -607,53 +530,13 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         
        
         c_type = model.known_stype(perturbed, *args)
+        c_type = model.optimize(c_type,lr, nb_iter,eps,1)
         model.display_type(c_type)
         c_token = model.CM.sample_token(c_type)
         c_image = model.CM.sample_image(c_token)
         plt.rcParams["figure.figsize"] = [105, 105]
         plt.imshow(c_image, cmap='Greys')
         plt.imsave('./original.png', c_image, cmap='Greys')
-
-    def test_dataset2(self,n_strokes, nsub, perturbed ,nb_iter, *args):
-        """
-        This function allows us to generate a new character type
-        generates a character type given previously the number of strokes, the number of substrokes for each stroke and the indexes of the primitives 
-        that we want to use (main difference from the original code - we control n_strokes, nsub and subparts)
-        after generating a character type ot optimizes the type - minimizing the loglikelihood score of the character type 
-
-        Parameters
-        ----------
-        n_strokes: int, number of strokes
-        nsub : list of tensors dim= n_strokes, each tensor has the nsub for each stroke
-        nb_iter : int
-        perturbed = bool
-
-        """
-        
-        lr=1e-3 #default learning rate 
-        eps=1e-4 #default tolerance for constrained optimization
-        
-        print('generating character...')
-        model = Perturbing()
-        model.n_strokes = n_strokes #number of strokes 
-        subp_list =[655,962,908,76,297] #list of primitive indexes to use 
-        model.subparts = subp_list #possible ids to use when sampling the id list 
-        model.nsub_list = nsub #list of nsub
-        
-       
-        c_type = model.known_stype(perturbed, *args)
-        model.display_type(c_type)
-
-        # optimize the character type that we sampled
-        model.optimize(c_type,lr, nb_iter, eps)
-
-        c_token = model.CM.sample_token(c_type)
-        c_image = model.CM.sample_image(c_token)
-        plt.rcParams["figure.figsize"] = [105, 105]
-        plt.imshow(c_image, cmap='Greys')
-        plt.imsave('./original.png', c_image, cmap='Greys')
-            
-            
         
     #visualize every primitive 
     def get_primitive_board (self):
@@ -694,9 +577,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         #plt.show()
         fig.savefig('/Users/carolinacaramelo/Desktop/Thesis_results/primitives_all2.png', cmap='Greys')
        
-           
-    
-   
+
     
    #running individual examples   
     def run_example_random(self,n_strokes, nsub, alpha, n_examples):
@@ -755,7 +636,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         plt.show()
 
     
-###### TESTING RECOVERY ######################################
+###### TESTING RECOVERY #################################################################################33
 
 #Exemplo para imagem que tem sempre apenas 1 sub-stroke para cada stroke
 ###LOAD AND TRASNFORM THE CELL ARRAYS FROM INFERENCE IN MATLAB TO NEEDED FORMS 
@@ -1185,7 +1066,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
 
         return r
 
-###ALTERED FUNCTION TO SAMPLE CHARACTER TYPE - known parameters from inference - without sampling 
+###ALTERED FUNCTION TO SAMPLE CHARACTER TYPE - known parameters from inference - without sampling #############################
 
     #altered function of StrokeTypeDist class, this time there will be a lot of things that we won't sample because we got the values from the inference
     def get_part_type_recover (self, perturbed, nsub, ids, invscales):
@@ -1254,7 +1135,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
     
 
 
-#####FUNCTIONS FOR SAMPLING THE CHARACTER TOKEN  with known parameters without sampling     
+#####FUNCTIONS FOR SAMPLING THE CHARACTER TOKEN  with known parameters without sampling###############################
     
     #Concept token
     def sample_token_recover(self, ctype):
@@ -1381,10 +1262,10 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         return rtoken
 
 
-####### GENERATE ALPHABET #######################################################################################
-
+####### GENERATE ALPHABET #################################################################################################
+##Dirichlet Process
  
-    def p_mem(self, perturbed, *args, alpha): #perturbed, *args - fazer no final para pT 
+    def p_mem(self, perturbed, *args): #perturbed, *args - fazer no final para pT 
        #this function will transform the learnt probability distributions of the BPL parameters in a new stochastic memoized distribution
        #P-mem, through a Dirichlet Process, in order to create dependencies between the different characters of a new generated alphabet. 
        #P-mem will induce dependencies between previously independent samples. This new "memoized" procedures will define a set of probability distributions 
@@ -1396,7 +1277,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
        Pmem=[]
        
        #alpha is defined the same for every DP (is it?)
-       #alpha = 3
+       alpha = 2
        
        #P-mem for number of strokes 
        base_measure = lambda: dist.Categorical(probs=self.lib.pkappa[0:7]).sample()+1  #distribution for sampling n_strokes #only allowing 7 strokes 
@@ -1431,6 +1312,12 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
                logStart = statistics.perturb_specific()[1]
            if  "perturb_specific2" in args:
                logStart = statistics.perturb_specific2()[1]
+           if "perturb_specific3" in args:
+               logStart = statistics.perturb_specific3()[1]
+           if "diffusion_based" in args:
+               #change parameter values
+               logStart = diffusionbased_perturbations.diffusion_perturbing_start(alpha=0.1, threshold=0.1, constant=0.1)
+               
        
        else: 
            logStart = torch.exp(self.lib.logStart)
@@ -1459,6 +1346,11 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
                pT = statistics.perturb_specific()[0]
            if "perturb_specific2" in args:
                pT = statistics.perturb_specific2()[0]
+           if "perturb_specific3" in args:
+               pT = statistics.perturb_specific3()[0]
+           if "diffusion_based" in args:
+               pT = diffusionbased_perturbations.diffusion_perturbing(alpha=0.1, threshold=0.1, constant=0.1)
+        
            print(pT)
         
            self.pT = pT
@@ -1493,9 +1385,9 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
 # Pmem[4] - relation type
 
 
-    def p_mem2(self, alpha):
+    def p_mem2(self):
         Pmem=[]
-        #alpha = 0.1
+        alpha = 2
         #P-mem for shapes
         shapes_mu = self.lib.shape['mu'][self.ids]
         shapes_Cov = self.lib.shape['Sigma'][self.ids]
@@ -1777,10 +1669,9 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
  ############################# GENERATE ALPHABET FUNCTION ###################################################
 
      ##COMEÇAR A MUDAR ESTA FUNÇÃO!!!!!  
-    def optimize_generate_alphabet(self, perturbed, *args, nb_iter):
+    def optimize_generate_alphabet(self, perturbed, *args, nb_iter, c_type):
         lr=1e-3 #default learning rate 
         eps=1e-4 #default tolerance for constrained optimization
-        c_type = self.DP_stype(perturbed, *args)
         self.optimize(c_type,lr, nb_iter, eps)
         return c_type
     
@@ -1794,10 +1685,11 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         
         
         
-        columns = 6
+        columns = 3
         rows = n_characters // columns + (n_characters % columns > 0)
         #fig ,ax= plt.subplots(nrows=rows,ncols=columns,figsize=(105,105))
         fig = plt.figure(figsize=(105,105))
+        
 
         count_images=0
         
@@ -1806,8 +1698,8 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
             path_character = '/Users/carolinacaramelo/Desktop/alphabet/character%i'%i
             os.makedirs(path_character)
             c_type = self.DP_stype(perturbed, *args)
-            #c_type = self.optimize_generate_alphabet(perturbed, *args, nb_iter=nb_iter) #still don't know what is happening here - make it work
-            
+            c_type = self.optimize(c_type,lr=1e-3, nb_iter=nb_iter, eps=1e-4, character=i+1) #still don't know what is happening here - make it work
+           
             self.display_type(c_type)
             file.write("character" + str(i) + "\n")
             file.write("num strokes:" + str(c_type.k)+ "\n")
@@ -1832,18 +1724,20 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
                 count_images+=1
                 c_token = self.CM.sample_token(c_type)
                 c_image = self.CM.sample_image(c_token)
-                fig.add_subplot(rows,columns,count_images)
-                plt.imshow(c_image,cmap='Greys')
+                ax = fig.add_subplot(rows,columns,count_images)
+                ax.imshow(c_image,cmap='Greys')
+                
                 
             except:
                 pass           
             
         fig.tight_layout()
-        fig.savefig('/Users/carolinacaramelo/Desktop/alphabet/alphabet.png', cmap='Greys') 
+        plt.show()
+        fig.savefig('/Users/carolinacaramelo/Desktop/alphabet/alphabet.png', cmap="Greys")
         file.close()
             
             
-     
+     #USAR A GENERATE ALPHABET TEST PARA CRIAR OS ALFABETOS BIASES PARA CERTAS PRIMITIVAS
         
    
     #generate alphabet will generate a set of character images related to each other - one alphabet 

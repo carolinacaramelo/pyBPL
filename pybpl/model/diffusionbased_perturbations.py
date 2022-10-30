@@ -22,6 +22,9 @@ import seaborn as sns
 import pandas as pd
 from mpl_toolkits import mplot3d
 import matplotlib.pyplot as plt
+from scipy.special import rel_entr
+import scipy.stats
+from scipy.stats import ks_2samp
 
 
 def flatten(l):
@@ -660,5 +663,36 @@ def apply_diffusions(alpha_start=0.001, alpha_end= 0.009, title='Diffused points
     return d_maps, alpha_values
 
 
-    
-    
+##################### OTHER MEASURES TO COMPARE MATRICES #######################################
+
+#kl divergence is a distance metric that quantifies the difference between two probbaility distributions.
+#This is not a symmetric metric, so if we calculate the kl divergence of q from p the value will be different 
+#than if we do it vice versa 
+def kl_divergence(p,q):
+    kl= sum(rel_entr(p, q)) #the unit is nats, but here it is refered in terms of bits 
+    return kl 
+
+def jensen_shannon_distance(p, q):
+    """
+    method to compute the Jenson-Shannon Distance 
+    between two probability distributions
+    """
+
+    # convert the vectors into numpy arrays in case that they aren't
+    p = np.array(p)
+    q = np.array(q)
+
+    # calculate m
+    m = (p + q) / 2
+
+    # compute Jensen Shannon Divergence
+    divergence = (scipy.stats.entropy(p, m) + scipy.stats.entropy(q, m)) / 2
+
+    # compute the Jensen Shannon Distance
+    distance = np.sqrt(divergence)
+
+    return distance   
+
+def ks_test(p,q): #im not sure if it makes sense to do this 
+    result = ks_2samp(p,q)
+    return result 
