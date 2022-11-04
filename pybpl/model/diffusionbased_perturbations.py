@@ -25,6 +25,7 @@ import matplotlib.pyplot as plt
 from scipy.special import rel_entr
 import scipy.stats
 from scipy.stats import ks_2samp
+from torch.autograd import Variable
 
 
 def flatten(l):
@@ -32,32 +33,33 @@ def flatten(l):
 
 #compute pT matrix, correspondent distance matrix and ro_pT matrix in the fastest way 
 #use this function to calculate entropy
-def dif_perturbations(alpha):
+def dif_perturbations(beta):
     #getting the pT matrix 
     lib = Library(use_hist= True)
     logR = lib.logT
     R = torch.exp(logR)
     pT = R / torch.sum(R)
-    d = -alpha * torch.log(pT)
-    ro_pT = torch.exp(d)/torch.sum(torch.exp(d))
+    d = -1 * torch.log(pT)
+    ro_pT = torch.exp(-beta*d)/torch.sum(torch.exp(-beta*d))
     
     return pT,ro_pT 
 
 #compute the logstart matrix, correspondent distance matrix, and ro_start matrix in the fastest way
 #use this function to calculate the entropy 
-def dif_perturbations_start(alpha):
+def dif_perturbations_start(beta):
     lib = Library(use_hist= True)
     logstart = torch.exp(lib.logStart)
     logstart = torch.where(logstart==0, torch.tensor(1e-20, dtype=logstart.dtype), logstart)
-    d_start = -alpha *torch.log(logstart)
-    ro_start = torch.exp(d_start)/torch.sum(torch.exp(d_start))
+    d_start = -1 *torch.log(logstart)
+    ro_start = torch.exp(-beta*d_start)/torch.sum(torch.exp(-beta*d_start))
 
     return logstart,ro_start
 
 ######################## PERTURBING - NEW MATRICES ##############################################
-def diffusion_perturbing(alpha, threshold, constant):
+#for now we are not using these function - but I will leave them here 
+def diffusion_perturbing(beta, threshold, constant):
     #computing ro_pT
-    results = dif_perturbations(alpha)
+    results = dif_perturbations(beta)
     ro_pT = results[1]
     
     #perturbing ro_pT above threshold values
@@ -82,9 +84,9 @@ def diffusion_perturbing(alpha, threshold, constant):
     
     return new_pT
 
-def diffusion_perturbing_start(alpha, threshold, constant):
+def diffusion_perturbing_start(beta, threshold, constant):
     #computing ro_start
-    results = dif_perturbations_start(alpha)
+    results = dif_perturbations_start(beta)
     ro_start = results[1]
     
     #perturbing ro_start above threshold values
@@ -114,11 +116,11 @@ def diffusion_perturbing_start(alpha, threshold, constant):
     
 ################################## DIFFUSION PERTURBATION GRAPHS ####################################
     
-#run this for different values of alpha - time constant - get all the results for
+#run this for different values of beta - inverse time constant - get all the results for
 #different alpha values
 #try to have a understanding of which alpha, threshold and constant values to use
 #in the grid search optimization 
-def dif_perturbations_graph(alpha):
+def dif_perturbations_graph(beta):
     #pT MATRIX
     #getting the pT matrix 
     lib = Library(use_hist= True)
@@ -137,7 +139,7 @@ def dif_perturbations_graph(alpha):
     plt.show()
     
     #defining a distance function according to the diffusion process 
-    d = -alpha * torch.log(pT)
+    d = -1 * torch.log(pT)
     np.savetxt("./d", d)
     
     #graph of diffusion distance
@@ -150,7 +152,7 @@ def dif_perturbations_graph(alpha):
     plt.show()
     
     #computing ro_pT matrix
-    exp_d = torch.exp(d)
+    exp_d = torch.exp(-beta*d)
     ro_pT = exp_d/torch.sum(exp_d)
     np.savetxt("./ro_pT", ro_pT)
     
@@ -163,7 +165,7 @@ def dif_perturbations_graph(alpha):
     plt.xlabel("Primitive pairs")
     plt.show()
     
-    #line graph of ro_pT 
+    #line graph of ro_pT - ro_pT is the new perturbed matrix 
     plt.figure (figsize=(10,10))
     plt.plot(x, ro_pT)
     plt.title("Ro pT matrix")
@@ -188,7 +190,7 @@ def dif_perturbations_graph(alpha):
     plt.show()
 
     #defining a distance function according to the diffusion process 
-    d_start = -alpha*torch.log(start)
+    d_start = -1*torch.log(start)
     np.savetxt("./d_start", d_start)
     
     #graph of diffusion distance
@@ -201,7 +203,7 @@ def dif_perturbations_graph(alpha):
     plt.show()
 
     #computing ro_start matrix 
-    exp_dstart = torch.exp(d_start)
+    exp_dstart = torch.exp(-beta*d_start)
     np.savetxt("./exp_dstart", exp_dstart)
     ro_start = exp_dstart/torch.sum(exp_dstart)
     np.savetxt("./ro_start", ro_start)
@@ -215,10 +217,10 @@ def dif_perturbations_graph(alpha):
     plt.xlabel("Primitives")
     plt.show()
    
-    return ro_pT, ro_start
+    return ro_pT, ro_start #new_perturbed matrices 
 
 #visualizing the ro_pT and ro_start matrix for every alpha value in an overlapping graph
-def dif_perturbations_alpha_viz():
+def dif_perturbations_beta_viz():
     #pT MATRIX
     #getting the pT matrix 
     lib = Library(use_hist= True)
@@ -226,20 +228,20 @@ def dif_perturbations_alpha_viz():
     R = torch.exp(logR)
     pT = R / torch.sum(R)
     
-    alpha = [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1]
+    beta = [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1]
     plt.figure (figsize=(10,10))
     plt.title("Ro pT matrix")
     plt.ylabel("Probability") #não tenho a certeza
     plt.xlabel("Primitive pairs")
-    for alpha in alpha:
+    for beta in beta:
         #defining a distance function according to the diffusion process 
-        d = -alpha * torch.log(pT)
+        d = -1 * torch.log(pT)
         #ro_pT matrix 
-        exp_d = torch.exp(d)
+        exp_d = torch.exp(-beta*d)
         ro_pT = exp_d / torch.sum(exp_d)
         #graph of ro_pT
         x = np.linspace(0, 1212*1212, 1212*1212)
-        plt.scatter(x, ro_pT, label = 'Alpha=%s' %alpha)
+        plt.scatter(x, ro_pT, label = 'Beta=%s' %beta)
         #plt.yticks(np.arange(0,5e-6, step=0.2))
     plt.legend()
     plt.show()
@@ -249,30 +251,30 @@ def dif_perturbations_alpha_viz():
     start = torch.exp(lib.logStart) 
     start = torch.where(start==0, torch.tensor(1e-20, dtype=start.dtype), start)
     
-    alpha = [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1]
+    beta = [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1]
     plt.figure (figsize=(10,10))
     plt.title("Ro logStart matrix")
     plt.ylabel("Probability") #não tenho a certeza
     plt.xlabel("Primitives")
-    for alpha in alpha:
+    for beta in beta:
         #defining a distance function according to the diffusion process 
-        d_start = -alpha*torch.log(start)
+        d_start = -1*torch.log(start)
         #ro_start matrix 
-        exp_dstart = torch.exp(d_start)
+        exp_dstart = torch.exp(-beta*d_start)
         ro_start = exp_dstart/torch.sum(exp_dstart)
         #graph of ro_start
         x = np.linspace(0, 1212*1212, 1212*1212)
-        plt.scatter(x, ro_start, label = 'Alpha=%s' %alpha)
+        plt.scatter(x, ro_start, label = 'Beta=%s' %beta)
         #plt.yticks(np.arange(0,5e-6, step=0.2))
     plt.legend()
     plt.show()
     
         
 #function to plot the new perturbed matrices, includes threshold and constant     
-def diffusion_perturbing_graph(alpha, threshold, constant):
+def diffusion_perturbing_graph(beta, threshold, constant):
     #computing ro_pT
-    ro_pT = dif_perturbations(alpha)[1]
-    pT =  dif_perturbations(alpha)[0]
+    ro_pT = dif_perturbations(beta)[1]
+    pT =  dif_perturbations(beta)[0]
 
     #graph of ro_pT with a certain alpha and a certain threshold
     x = np.linspace(0, 1212*1212, 1212*1212)
@@ -301,7 +303,7 @@ def diffusion_perturbing_graph(alpha, threshold, constant):
     new_pT= new_pT/new_pT.sum()
     np.savetxt("./new_pt", new_pT)
     
-    #graph of new_pT with a certain alpha and a certain threshold,
+    #graph of new_pT with a certain beta and a certain threshold,
     plt.figure (figsize=(10,10))
     plt.scatter(x, new_pT, label = "Constant=%d"%constant)
     plt.title("New pT matrix")
@@ -311,8 +313,8 @@ def diffusion_perturbing_graph(alpha, threshold, constant):
     plt.show()
     
     #Repeat the process for the logstart matrix
-    ro_start = dif_perturbations_start(alpha)[1]
-    start =  dif_perturbations_start(alpha)[0]
+    ro_start = dif_perturbations_start(beta)[1]
+    start =  dif_perturbations_start(beta)[0]
 
     #graph of ro_start with a certain alpha and a certain threshold
     x = np.linspace(0, 1212, 1212)
@@ -464,43 +466,79 @@ def trajectory_entropy_total(new_pT, new_start, graph):
 #the function we want to minimize - loss function 
 #we want to maximize the difference of entropies between the new matrices and the original ones
 #which is the same as minimizing the negative of that difference difference 
+# =============================================================================
+# def loss_function(param):
+#     beta, threshold, constant = param
+#     new_pT = diffusion_perturbing(beta, threshold, constant)
+#     new_start = diffusion_perturbing_start(beta, threshold, constant)
+#     loss =  - (trajectory_entropy_total(new_pT, new_start, False) - trajectory_entropy_original_total(False))
+#     print("Loss function value\n {}".format(loss))
+#     return loss
+# =============================================================================
+
 def loss_function(param):
-    alpha, threshold, constant = param
-    new_pT = diffusion_perturbing(alpha, threshold, constant)
-    new_start = diffusion_perturbing_start(alpha, threshold, constant)
+    beta = param
+    new_pT = dif_perturbations(beta)[1]
+    new_start = dif_perturbations_start(beta)[1]
     loss =  - (trajectory_entropy_total(new_pT, new_start, False) - trajectory_entropy_original_total(False))
     print("Loss function value\n {}".format(loss))
     return loss
 
-#in order to optimize the alpha, threshold and constant parameters 
+#in order to optimize the beta parameter - the beta trendline will gravitate towards this value 
 def grid_search():
-    #alpha values to take into consideration
-    alpha = [0.5,1] 
-    #constant values to take into consideration 
-    constant = [0.25e-7, 0.5e-7] 
+    #beta values to take into consideration
+    beta = [5, 7,9,10] 
     sample = list()
-    alpha_list=[]
-    threshold_list=[]
-    constant_list=[]
-    for x in alpha:
-        #calculate the ro_pT depending on the alpha value 
-        ro_pT = dif_perturbations(x)[0] 
-        #threshold interval of values depends on ro matrix
-        threshold = [ro_pT.mean(), torch.quantile(ro_pT, 0.25)] 
-        for y in threshold:
-            for z in constant:
-                #list with combination of parameter values
-                 sample.append([x,y,z]) 
-                 alpha_list.append(x)
-                 threshold_list.append(y)
-                 constant_list.append(z)
+ 
+    for x in beta:
+        #list with combination of parameter values
+         sample.append(x) 
+     
     #loss function values for every combination of parameter values              
-    sample_eval = [loss_function(alpha, threshold,constant) for alpha, threshold, constant in sample]
+    sample_eval = [loss_function(beta) for beta in sample]
     best = min(sample_eval)
     index = sample_eval.index(best)
     best_parameters = sample[index]
     
-    return best, best_parameters, alpha_list, threshold_list, constant_list, sample_eval
+    return best, best_parameters, sample_eval
+
+
+
+
+
+
+
+# =============================================================================
+# #in order to optimize the alpha, threshold and constant parameters 
+# def grid_search():
+#     #alpha values to take into consideration
+#     alpha = [0.5,1] 
+#     #constant values to take into consideration 
+#     constant = [0.25e-7, 0.5e-7] 
+#     sample = list()
+#     alpha_list=[]
+#     threshold_list=[]
+#     constant_list=[]
+#     for x in alpha:
+#         #calculate the ro_pT depending on the alpha value 
+#         ro_pT = dif_perturbations(x)[0] 
+#         #threshold interval of values depends on ro matrix
+#         threshold = [ro_pT.mean(), torch.quantile(ro_pT, 0.25)] 
+#         for y in threshold:
+#             for z in constant:
+#                 #list with combination of parameter values
+#                  sample.append([x,y,z]) 
+#                  alpha_list.append(x)
+#                  threshold_list.append(y)
+#                  constant_list.append(z)
+#     #loss function values for every combination of parameter values              
+#     sample_eval = [loss_function(alpha, threshold,constant) for alpha, threshold, constant in sample]
+#     best = min(sample_eval)
+#     index = sample_eval.index(best)
+#     best_parameters = sample[index]
+#     
+#     return best, best_parameters, alpha_list, threshold_list, constant_list, sample_eval
+# =============================================================================
 
 def plot_hyperparams_grid(alpha_list,threshold_list,constant_list, loss_list):
     dic = dict({"alpha": alpha_list, "threshold": threshold_list, "constant": constant_list ,"loss": loss_list})
@@ -528,10 +566,6 @@ def plot_hyperparams_3d(alpha_list,threshold_list,constant_list, loss_list):
 #limit of iterations 
 #don't know which one is the most efficient 
 def optimize_min():
-    #setting initial values
-    alpha = 0.1
-    threshold = 0.8e-7
-    constant = 0.5e-7
     r = ((1e-6,1.0), (0.1e-7, 1e-7), (1e-5,10e-5))
     res = minimize(loss_function,[0.1,0.8e-7, 0.5e-7], bounds=r)
     
@@ -540,7 +574,7 @@ def optimize_min():
 
 
 #other way to do it 
-def optimize_perturbation():
+def optimize_pert():
     graph_x1 = []
     graph_x2 = []
     graph_x3 = []

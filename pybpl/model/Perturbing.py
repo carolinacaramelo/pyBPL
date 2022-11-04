@@ -136,7 +136,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         ids =[]
         if perturbed:
             if  "perturb_quartile1" in args:
-                #set the initial transition probabilities 
+                #set the initial transition probabilities - logstart matrix 
                 pT = statistics.perturb_quartile1()[1] #perturbed logstart
             if  "perturb_quartile2" in args:
                 pT = statistics.perturb_quartile2()[1] #perturbed logstart
@@ -150,6 +150,9 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
                 pT = statistics.perturb_specific()[1]
             if "perturb_specific2" in args:
                 pT = statistics.perturb_specific2()[1]
+            if "diffusion_based" in args:
+                pT = diffusionbased_perturbations.dif_perturbations_start(beta=0.1)[1]
+            
       
             pT = self.truncate_start(pT)
             #step through and sample 'nsub' sub-strokes
@@ -217,10 +220,9 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
 
     def truncateT_perturbed (self, *args): #in gaussian noise the alpha can be sqrt(variance) #perturbar antes a matrix logT, perturbar sem normalizar na logT 
         if "perturb_quartile1" in args:
-            #set the initial transition probabilities 
-            pT = statistics.perturb_quartile1()[0] #perturbed logstart
+            pT = statistics.perturb_quartile1()[0] #perturbed pT
         if "perturb_quartile2" in args:
-            pT = statistics.perturb_quartile2()[0] #perturbed logstart
+            pT = statistics.perturb_quartile2()[0] #perturbed pT
         if "perturb_q4" in args:
             pT = statistics.perturb_q4()[0]
         if "perturb_flatenning" in args:
@@ -231,6 +233,8 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
             pT = statistics.perturb_specific()[0]
         if "perturb_specific2" in args:
             pT = statistics.perturb_specific2()[0]
+        if "diffusion_based" in args:
+            pT = diffusionbased_perturbations.dif_perturbations(beta=0.1)[1]
             
         m = np.isin([i for i in range(len(pT))], self.subparts)
         n = np.invert(m)
@@ -1316,7 +1320,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
                logStart = statistics.perturb_specific3()[1]
            if "diffusion_based" in args:
                #change parameter values
-               logStart = diffusionbased_perturbations.diffusion_perturbing_start(alpha=0.1, threshold=0.1, constant=0.1)
+               logStart = diffusionbased_perturbations.dif_pertubations_start(beta=0.1)[1]
                
        
        else: 
@@ -1349,7 +1353,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
            if "perturb_specific3" in args:
                pT = statistics.perturb_specific3()[0]
            if "diffusion_based" in args:
-               pT = diffusionbased_perturbations.diffusion_perturbing(alpha=0.1, threshold=0.1, constant=0.1)
+               pT = diffusionbased_perturbations.dif_perturbations(beta=0.1)[1]
         
            print(pT)
         

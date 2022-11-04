@@ -98,6 +98,7 @@ def empirical_countings():
     pT = pT / total_trans #new pT
     print(pT)
     print(logstart)
+    np.savetxt("./list_ids_empirical_countings", list_ids)
     
     return logstart, pT, list_ids
     
