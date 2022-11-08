@@ -1,0 +1,2 @@
+Trajectory entropy total 
+7322311001593.398 bits

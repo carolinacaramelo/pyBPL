@@ -1,0 +1,300 @@
+character0
+num strokes:tensor(1)
+Stroke #:0
+	sub-stroke ids:[516, 455]
+\trelation category:unihist
+----END CHARACTER TYPE INFO----
+character1
+num strokes:tensor(4)
+Stroke #:0
+	sub-stroke ids:[409, 946]
+\trelation category:unihist
+Stroke #:1
+	sub-stroke ids:[409]
+\trelation category:start
+Stroke #:2
+	sub-stroke ids:[621]
+\trelation category:mid
+Stroke #:3
+	sub-stroke ids:[214]
+\trelation category:mid
+----END CHARACTER TYPE INFO----
+character2
+num strokes:tensor(4)
+Stroke #:0
+	sub-stroke ids:[409]
+\trelation category:unihist
+Stroke #:1
+	sub-stroke ids:[980]
+\trelation category:mid
+Stroke #:2
+	sub-stroke ids:[409]
+\trelation category:mid
+Stroke #:3
+	sub-stroke ids:[409]
+\trelation category:mid
+----END CHARACTER TYPE INFO----
+character3
+num strokes:tensor(3)
+Stroke #:0
+	sub-stroke ids:[621]
+\trelation category:unihist
+Stroke #:1
+	sub-stroke ids:[621]
+\trelation category:mid
+Stroke #:2
+	sub-stroke ids:[980]
+\trelation category:unihist
+----END CHARACTER TYPE INFO----
+character4
+num strokes:tensor(3)
+Stroke #:0
+	sub-stroke ids:[827, 1196]
+\trelation category:unihist
+Stroke #:1
+	sub-stroke ids:[409]
+\trelation category:mid
+Stroke #:2
+	sub-stroke ids:[409]
+\trelation category:mid
+----END CHARACTER TYPE INFO----
+character5
+num strokes:tensor(1)
+Stroke #:0
+	sub-stroke ids:[621, 481]
+\trelation category:unihist
+----END CHARACTER TYPE INFO----
+character6
+num strokes:tensor(4)
+Stroke #:0
+	sub-stroke ids:[409]
+\trelation category:unihist
+Stroke #:1
+	sub-stroke ids:[409]
+\trelation category:mid
+Stroke #:2
+	sub-stroke ids:[827]
+\trelation category:mid
+Stroke #:3
+	sub-stroke ids:[621]
+\trelation category:mid
+----END CHARACTER TYPE INFO----
+character7
+num strokes:tensor(4)
+Stroke #:0
+	sub-stroke ids:[133]
+\trelation category:unihist
+Stroke #:1
+	sub-stroke ids:[621]
+\trelation category:unihist
+Stroke #:2
+	sub-stroke ids:[409]
+\trelation category:mid
+Stroke #:3
+	sub-stroke ids:[827]
+\trelation category:unihist
+----END CHARACTER TYPE INFO----
+character8
+num strokes:tensor(4)
+Stroke #:0
+	sub-stroke ids:[10]
+\trelation category:unihist
+Stroke #:1
+	sub-stroke ids:[621]
+\trelation category:mid
+Stroke #:2
+	sub-stroke ids:[813]
+\trelation category:mid
+Stroke #:3
+	sub-stroke ids:[557]
+\trelation category:mid
+----END CHARACTER TYPE INFO----
+character9
+num strokes:tensor(2)
+Stroke #:0
+	sub-stroke ids:[621, 90]
+\trelation category:unihist
+Stroke #:1
+	sub-stroke ids:[214]
+\trelation category:mid
+----END CHARACTER TYPE INFO----
+character10
+num strokes:tensor(3)
+Stroke #:0
+	sub-stroke ids:[621, 290]
+\trelation category:unihist
+Stroke #:1
+	sub-stroke ids:[409]
+\trelation category:mid
+Stroke #:2
+	sub-stroke ids:[409]
+\trelation category:start
+----END CHARACTER TYPE INFO----
+character11
+num strokes:tensor(3)
+Stroke #:0
+	sub-stroke ids:[621]
+\trelation category:unihist
+Stroke #:1
+	sub-stroke ids:[621]
+\trelation category:start
+Stroke #:2
+	sub-stroke ids:[214]
+\trelation category:mid
+----END CHARACTER TYPE INFO----
+character12
+num strokes:tensor(4)
+Stroke #:0
+	sub-stroke ids:[409]
+\trelation category:unihist
+Stroke #:1
+	sub-stroke ids:[352]
+\trelation category:start
+Stroke #:2
+	sub-stroke ids:[409]
+\trelation category:mid
+Stroke #:3
+	sub-stroke ids:[621]
+\trelation category:mid
+----END CHARACTER TYPE INFO----
+character13
+num strokes:tensor(4)
+Stroke #:0
+	sub-stroke ids:[621]
+\trelation category:unihist
+Stroke #:1
+	sub-stroke ids:[621]
+\trelation category:mid
+Stroke #:2
+	sub-stroke ids:[621]
+\trelation category:mid
+Stroke #:3
+	sub-stroke ids:[409]
+\trelation category:mid
+----END CHARACTER TYPE INFO----
+character14
+num strokes:tensor(4)
+Stroke #:0
+	sub-stroke ids:[352]
+\trelation category:unihist
+Stroke #:1
+	sub-stroke ids:[621]
+\trelation category:mid
+Stroke #:2
+	sub-stroke ids:[827]
+\trelation category:mid
+Stroke #:3
+	sub-stroke ids:[621]
+\trelation category:mid
+----END CHARACTER TYPE INFO----
+character15
+num strokes:tensor(1)
+Stroke #:0
+	sub-stroke ids:[409]
+\trelation category:unihist
+----END CHARACTER TYPE INFO----
+character16
+num strokes:tensor(4)
+Stroke #:0
+	sub-stroke ids:[409]
+\trelation category:unihist
+Stroke #:1
+	sub-stroke ids:[621]
+\trelation category:mid
+Stroke #:2
+	sub-stroke ids:[621]
+\trelation category:mid
+Stroke #:3
+	sub-stroke ids:[621]
+\trelation category:mid
+----END CHARACTER TYPE INFO----
+character17
+num strokes:tensor(2)
+Stroke #:0
+	sub-stroke ids:[516]
+\trelation category:unihist
+Stroke #:1
+	sub-stroke ids:[409]
+\trelation category:start
+----END CHARACTER TYPE INFO----
+character18
+num strokes:tensor(3)
+Stroke #:0
+	sub-stroke ids:[621]
+\trelation category:unihist
+Stroke #:1
+	sub-stroke ids:[621]
+\trelation category:mid
+Stroke #:2
+	sub-stroke ids:[621]
+\trelation category:mid
+----END CHARACTER TYPE INFO----
+character19
+num strokes:tensor(4)
+Stroke #:0
+	sub-stroke ids:[621]
+\trelation category:unihist
+Stroke #:1
+	sub-stroke ids:[306]
+\trelation category:unihist
+Stroke #:2
+	sub-stroke ids:[827]
+\trelation category:mid
+Stroke #:3
+	sub-stroke ids:[409]
+\trelation category:mid
+----END CHARACTER TYPE INFO----
+character20
+num strokes:tensor(4)
+Stroke #:0
+	sub-stroke ids:[214]
+\trelation category:unihist
+Stroke #:1
+	sub-stroke ids:[409]
+\trelation category:mid
+Stroke #:2
+	sub-stroke ids:[621]
+\trelation category:mid
+Stroke #:3
+	sub-stroke ids:[10]
+\trelation category:mid
+----END CHARACTER TYPE INFO----
+character21
+num strokes:tensor(1)
+Stroke #:0
+	sub-stroke ids:[621]
+\trelation category:unihist
+----END CHARACTER TYPE INFO----
+character22
+num strokes:tensor(2)
+Stroke #:0
+	sub-stroke ids:[5]
+\trelation category:unihist
+Stroke #:1
+	sub-stroke ids:[214]
+\trelation category:mid
+----END CHARACTER TYPE INFO----
+character23
+num strokes:tensor(3)
+Stroke #:0
+	sub-stroke ids:[409]
+\trelation category:unihist
+Stroke #:1
+	sub-stroke ids:[827]
+\trelation category:mid
+Stroke #:2
+	sub-stroke ids:[621, 15]
+\trelation category:mid
+----END CHARACTER TYPE INFO----
+character24
+num strokes:tensor(3)
+Stroke #:0
+	sub-stroke ids:[409]
+\trelation category:unihist
+Stroke #:1
+	sub-stroke ids:[621]
+\trelation category:mid
+Stroke #:2
+	sub-stroke ids:[10]
+\trelation category:mid
+----END CHARACTER TYPE INFO----

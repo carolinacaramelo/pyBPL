@@ -1,0 +1,10 @@
+ro_start statistics 
+
+Min tensor(1.7249e-10)
+Max tensor(0.0042)
+Mean  tensor(0.0008)
+Median tensor(0.0008)
+Quantile 0.25 tensor(0.0006)
+Quantile 0.5 tensor(0.0008)
+Quantile 0.75 tensor(0.0009)
+Quantile 1 tensor(0.0042)

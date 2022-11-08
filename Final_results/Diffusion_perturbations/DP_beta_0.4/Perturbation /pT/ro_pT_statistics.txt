@@ -1,0 +1,10 @@
+ro_pT statistics 
+
+Min - tensor(3.0561e-07)
+Max - tensor(6.2889e-06)
+Mean - tensor(6.8076e-07)
+Median - tensor(6.7802e-07)
+Quantile 0.25 - tensor(6.6039e-07)
+Quantile 0.5 - tensor(6.7802e-07)
+Quantile 0.75 - tensor(6.9073e-07)
+Quantile 1 - tensor(6.2889e-06)
