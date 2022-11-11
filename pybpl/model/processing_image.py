@@ -69,7 +69,7 @@ def process_image(im, num):
     
         if hierarchy[0][i][3] != -1: # basically look for holes
             # if the size of the contour is less than a threshold (noise)
-            if cv2.contourArea(cnt) < 70:
+            if cv2.contourArea(cnt) < 50: #test change from 70 to 50
                 # Fill the holes in the original image
                 cv2.drawContours(img, [cnt], 0, (255), -1)
     
@@ -110,7 +110,7 @@ def process_image(im, num):
     
     result = skimage.exposure.rescale_intensity(blur, in_range=(127.5,255), out_range=(0,255))
     
-    cv2.imwrite("./image%d"%num+".png", result) 
+    cv2.imwrite("./processed/image%d"%num+".png", result) 
     #add processed folder to directory when doing inference 
     #when doing inference for the evaluation set in one shot classification - maintain
     
@@ -145,11 +145,7 @@ def process_image(im, num):
     #closing = cv2.morphologyEx(im_bin, cv2.MORPH_CLOSE, kernel)
     
     #cv2.imwrite("./clean.png", closing)
-    
-    
-    
-    
-    
+
     #Convert png to jpg
     #im = Image.open('./numpy_binarization.png')
     #rgb_im = im.convert('RGB')

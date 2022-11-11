@@ -1,11 +1,11 @@
 % Demo of fitting a motor program to an image.
 function demo_fit_perturbing(num)
     % Parameters
-    s= "./image"+num+".png"; %add processed folder when doing inference 
+    s= "./processed/image"+num+".png"; %add processed folder when doing inference 
     img = imread(s);
     K = 1; % number of unique parses we want to collect, we will only collect the best parse 
     verbose = true; % describe progress and visualize parse?
-    include_mcmc = false; % run mcmc to estimate local variability?
+    include_mcmc = true; % run mcmc to estimate local variability?
     fast_mode = true; % skip the slow step of fitting strokes to details of the ink?
     
     %if fast_mode
@@ -15,7 +15,17 @@ function demo_fit_perturbing(num)
     
     %load('cross_img','img');
     G = fit_motorprograms(img,K,verbose,include_mcmc,fast_mode);
-    
+    FolderName = ("/Users/carolinacaramelo/Desktop/results_inference");   % using my directory
+    FigList = findobj(allchild(0), 'flat', 'Type', 'figure');
+    for iFig = 1:length(FigList)
+      FigHandle = FigList(iFig);
+      FigName   = strcat(num2str(get(FigHandle, 'Number')), sprintf("image%d",num));
+      set(0, 'CurrentFigure', FigHandle);
+    %   saveas(FigHandle, strcat(FigName, '.png'));
+      saveas(FigHandle, fullfile(FolderName,strcat(FigName, '.png'))); % specify the full path
+    end
+
+    close all;
     
     scores = G.scores;
     save('/Users/carolinacaramelo/Desktop/TESE/Code/MasterThesis/pyBPL/pyBPL/bottomup/scores.mat', 'scores');
@@ -67,7 +77,7 @@ function demo_fit_perturbing(num)
             save('/Users/carolinacaramelo/Desktop/TESE/Code/MasterThesis/pyBPL/pyBPL/model/r_gpos.mat', 'C');
             disp("done")
     
-        else
+        elseif G.models{1, 1}.S{i, 1}.R.type == "mid"
             A{i,1} = G.models{1, 1}.S{i, 1}.R.subid_spot;
             save('/Users/carolinacaramelo/Desktop/TESE/Code/MasterThesis/pyBPL/pyBPL/bottomup/r_subid.mat', 'A');
             save('/Users/carolinacaramelo/Desktop/TESE/Code/MasterThesis/pyBPL/pyBPL/model/r_subid.mat', 'A');
@@ -77,9 +87,14 @@ function demo_fit_perturbing(num)
             D{i,1} = G.models{1, 1}.S{i, 1}.R.attach_spot;
             save('/Users/carolinacaramelo/Desktop/TESE/Code/MasterThesis/pyBPL/pyBPL/bottomup/r_attach_spot.mat', 'D');
             save('/Users/carolinacaramelo/Desktop/TESE/Code/MasterThesis/pyBPL/pyBPL/model/r_attach_spot.mat', 'D');
-    
-    
-    
+        else
+             B{i,1} = G.models{1, 1}.S{i, 1}.R.ncpt;
+             save('/Users/carolinacaramelo/Desktop/TESE/Code/MasterThesis/pyBPL/pyBPL/bottomup/r_ncpt.mat', 'B');
+             save('/Users/carolinacaramelo/Desktop/TESE/Code/MasterThesis/pyBPL/pyBPL/model/r_ncpt.mat', 'B');
+             D{i,1} = G.models{1, 1}.S{i, 1}.R.attach_spot;
+             save('/Users/carolinacaramelo/Desktop/TESE/Code/MasterThesis/pyBPL/pyBPL/bottomup/r_attach_spot.mat', 'D');
+             save('/Users/carolinacaramelo/Desktop/TESE/Code/MasterThesis/pyBPL/pyBPL/model/r_attach_spot.mat', 'D');
+
         end
     end 
     

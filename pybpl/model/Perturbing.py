@@ -20,7 +20,7 @@ from pybpl.objects import (RelationType, RelationIndependent, RelationAttach,
 import sys 
 sys.path.insert(1, '/Users/carolinacaramelo/Desktop/TESE/Code/MasterThesis/pyBPL/pybpl/library')
 import statistics
-import diffusionbased_perturbations
+import diffusionbased_perturbations 
 from DP import DirichletProcessSample
 import torch
 import torch.distributions as dist
@@ -470,10 +470,10 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
 ######## OPTIMIZING CHARACTER MODEL TYPE ###################################################################################
    
     
-    def optimize(self,c, lr, nb_iter, eps, character):
+    def optimize(self,c, lr, nb_iter, eps, character,n_alph):
         # optimize the character type that we sampled
         model = self.CM
-        score_list = optimize_type.optimize_type(model,c=c, lr=lr, nb_iter=nb_iter, eps=1e-4,show_examples=True)
+        score_list = optimize_type.optimize_type(model,c=c, lr=lr, nb_iter=nb_iter, eps=1e-4,show_examples=False)
         print(score_list)
         # plot log-likelihood vs. iteration
         plt.figure(figsize=(10,10))
@@ -481,7 +481,8 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         plt.ylabel('log-likelihood')
         plt.xlabel('iteration')
         plt.title("Score optimization character type %d" %character)
-        plt.show()
+        plt.savefig("/Users/carolinacaramelo/Desktop/scores/alphabet%d" %n_alph + "_character%i"%character+".png")
+        
         
         return c
 
@@ -794,75 +795,84 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         self.nprev = nprev
         print("nprev_1", nprev)
         
-        
-        #ncpt
-        ncpt = io.loadmat('./r_ncpt.mat')
-        items = ncpt.items()
-        l =list(items)
-        
-        ncpt =l[len(l)-1]
-        
-        array_ncpt= np.array(ncpt)
-        array_ncpt = (array_ncpt[1])
-        
-        list_ncpt=[]
-        ncpt=[]
-        for i in range(self.n_strokes):
-            try:
-                list_ncpt += [(((array_ncpt[i])[0])[0])[0]]
+        try:
+            #ncpt
+            ncpt = io.loadmat('./r_ncpt.mat')
+            items = ncpt.items()
+            l =list(items)
+            
+            ncpt =l[len(l)-1]
+            
+            array_ncpt= np.array(ncpt)
+            array_ncpt = (array_ncpt[1])
+            
+            list_ncpt=[]
+            ncpt=[]
+            for i in range(self.n_strokes):
+                try:
+                    list_ncpt += [(((array_ncpt[i])[0])[0])[0]]
+                    
+                except IndexError:
+                    list_ncpt += [0]
+            ncpt += list_ncpt
                 
-            except IndexError:
-                list_ncpt += [0]
-        ncpt += list_ncpt
+            print("ncpt_1", ncpt) 
+            self.ncpt_r = ncpt
+        except:
+            pass
+        
+        try:
             
-        print("ncpt_1", ncpt) 
-        self.ncpt_r = ncpt
-        
-        
-        #subid_spot
-        subid_spot = io.loadmat('./r_subid.mat')
-        items = subid_spot.items()
-        l =list(items)
-        
-        subid_spot =l[len(l)-1]
-        
-        array_subid_spot= np.array(subid_spot)
-        array_subid_spot = (array_subid_spot[1])
-        
-        subid_spot=[]
-        for i in range(self.n_strokes):
-            try:
-                subid_spot += [(((array_subid_spot[i])[0])[0])[0]]
+            #subid_spot
+            subid_spot = io.loadmat('./r_subid.mat')
+            items = subid_spot.items()
+            l =list(items)
+            
+            subid_spot =l[len(l)-1]
+            
+            array_subid_spot= np.array(subid_spot)
+            array_subid_spot = (array_subid_spot[1])
+            
+            subid_spot=[]
+            for i in range(self.n_strokes):
+                try:
+                    subid_spot += [(((array_subid_spot[i])[0])[0])[0]]
+                    
+                except IndexError:
+                    subid_spot += [0]
                 
-            except IndexError:
-                subid_spot += [0]
-            
-            
-        self.subid_spot = subid_spot
-        print("subid_1",subid_spot)
-        
-        #attach_spot
-        attach_spot = io.loadmat('./r_attach_spot.mat')
-        items = attach_spot.items()
-        l =list(items)
-        
-        attach_spot =l[len(l)-1]
-        
-        array_attach_spot= np.array(attach_spot)
-        array_attach_spot = (array_attach_spot[1])
-        
-        attach_spot=[]
-        for i in range(self.n_strokes):
-            try:
-                attach_spot += [(((array_attach_spot[i])[0])[0])[0]]
                 
-            except IndexError:
-                attach_spot +=[0]
-            
-            
-        self.attach_spot = attach_spot
-        print("attach_spot_1",attach_spot)
+            self.subid_spot = subid_spot
+            print("subid_1",subid_spot)
+        except:
+            pass
         
+        try:
+            
+            #attach_spot
+            attach_spot = io.loadmat('./r_attach_spot.mat')
+            items = attach_spot.items()
+            l =list(items)
+            
+            attach_spot =l[len(l)-1]
+            
+            array_attach_spot= np.array(attach_spot)
+            array_attach_spot = (array_attach_spot[1])
+            
+            attach_spot=[]
+            for i in range(self.n_strokes):
+                try:
+                    attach_spot += [(((array_attach_spot[i])[0])[0])[0]]
+                    
+                except IndexError:
+                    attach_spot +=[0]
+                
+                
+            self.attach_spot = attach_spot
+            print("attach_spot_1",attach_spot)
+        except:
+            pass
+            
         #pos_token
         pos_token = io.loadmat('./pos_token.mat')
         items = pos_token.items()
@@ -956,28 +966,30 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         print("shapes_token_1", shapes)
         
         
-        
-        #eval_spot_token
-        eval_spot_token = io.loadmat('./eval_spot_token.mat')
-        items = eval_spot_token.items()
-        l =list(items)
-        
-        eval_spot_token=l[len(l)-1]
-        
-        array_eval_spot_token = np.array(eval_spot_token)
-        array_eval_spot_token = (array_eval_spot_token[1])
-        
-        eval_spot_token =[]
-        for i in range(array_eval_spot_token.size):
-            try:
-                eval_spot_token += [(((array_eval_spot_token[i])[0])[0])[0]]
+        try:
+            #eval_spot_token
+            eval_spot_token = io.loadmat('./eval_spot_token.mat')
+            items = eval_spot_token.items()
+            l =list(items)
             
-            except IndexError:
-                eval_spot_token+=[0]
+            eval_spot_token=l[len(l)-1]
             
+            array_eval_spot_token = np.array(eval_spot_token)
+            array_eval_spot_token = (array_eval_spot_token[1])
             
-        self.eval_spot_token = eval_spot_token
-        print("eval_spot_token_1", eval_spot_token)
+            eval_spot_token =[]
+            for i in range(array_eval_spot_token.size):
+                try:
+                    eval_spot_token += [(((array_eval_spot_token[i])[0])[0])[0]]
+                
+                except IndexError:
+                    eval_spot_token+=[0]
+                
+                
+            self.eval_spot_token = eval_spot_token
+            print("eval_spot_token_1", eval_spot_token)
+        except:
+            pass
         
         #epsilon
         epsilon = io.loadmat('./epsilon.mat')
@@ -1281,10 +1293,10 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
        Pmem=[]
        
        #alpha is defined the same for every DP (is it?)
-       alpha = 2
+       alpha = 4.5
        
        #P-mem for number of strokes 
-       base_measure = lambda: dist.Categorical(probs=self.lib.pkappa[0:7]).sample()+1  #distribution for sampling n_strokes #only allowing 7 strokes 
+       base_measure = lambda: dist.Categorical(probs=self.lib.pkappa).sample()+1 #lib.pkappa[0:7] #distribution for sampling n_strokes #only allowing 7 strokes 
        dirichlet_norm = DirichletProcessSample(base_measure=base_measure, alpha=alpha)
        Pmem +=[[dirichlet_norm]]
        
@@ -1292,7 +1304,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
        #P-mem for number of substrokes 
        Pmem_nsub = []
        for i in range(10):
-           pvec = self.lib.pmat_nsub[i][0:8] #only allowing 8 nsub
+           pvec = self.lib.pmat_nsub[i]#[0:8] #only allowing 8 nsub
            base_measure =  lambda: dist.Categorical(probs=pvec).sample() + 1 #distribution for sampling nsub, depending on the number of n_strokes
            dirichlet_norm = DirichletProcessSample(base_measure=base_measure, alpha=alpha)
            Pmem_nsub += [dirichlet_norm]
@@ -1320,7 +1332,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
                logStart = statistics.perturb_specific3()[1]
            if "diffusion_based" in args:
                #change parameter values
-               logStart = diffusionbased_perturbations.dif_pertubations_start(beta=0.1)[1]
+               logStart = diffusionbased_perturbations.dif_perturbations_start(beta=0.4)[1]
                
        
        else: 
@@ -1353,7 +1365,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
            if "perturb_specific3" in args:
                pT = statistics.perturb_specific3()[0]
            if "diffusion_based" in args:
-               pT = diffusionbased_perturbations.dif_perturbations(beta=0.1)[1]
+               pT = diffusionbased_perturbations.dif_perturbations(beta=0.4)[1]
         
            print(pT)
         
@@ -1391,7 +1403,7 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
 
     def p_mem2(self):
         Pmem=[]
-        alpha = 2
+        alpha = 4.5
         #P-mem for shapes
         shapes_mu = self.lib.shape['mu'][self.ids]
         shapes_Cov = self.lib.shape['Sigma'][self.ids]
@@ -1680,66 +1692,73 @@ class Perturbing (StrokeTypeDist, ConceptTypeDist, CharacterModel, Library):
         return c_type
     
     
-    def generate_alphabet(self, perturbed, *args, n_characters, n_tokens, nb_iter):
-        
-        self.p_mem(perturbed, *args)
-        path = '/Users/carolinacaramelo/Desktop/alphabet'
+    def generate_alphabet(self, perturbed, *args, n_characters, n_tokens, nb_iter,n_alph):
+        path = "/Users/carolinacaramelo/Desktop/alphabets"
         os.makedirs(path)
-        file = open("/Users/carolinacaramelo/Desktop/alphabet/info", 'w') 
-        
-        
-        
-        columns = 3
-        rows = n_characters // columns + (n_characters % columns > 0)
-        #fig ,ax= plt.subplots(nrows=rows,ncols=columns,figsize=(105,105))
-        fig = plt.figure(figsize=(105,105))
-        
-
-        count_images=0
-        
-        for i in range(n_characters):
+        #ids=[]
+        for n_alph in range(n_alph):
+            self.p_mem(perturbed, *args)
+            path = '/Users/carolinacaramelo/Desktop/alphabets/alphabet%d'%n_alph
+            os.makedirs(path)
+            file = open("/Users/carolinacaramelo/Desktop/alphabets/alphabet%d"%n_alph + "/info", 'w') 
             
-            path_character = '/Users/carolinacaramelo/Desktop/alphabet/character%i'%i
-            os.makedirs(path_character)
-            c_type = self.DP_stype(perturbed, *args)
-            c_type = self.optimize(c_type,lr=1e-3, nb_iter=nb_iter, eps=1e-4, character=i+1) #still don't know what is happening here - make it work
-           
-            self.display_type(c_type)
-            file.write("character" + str(i) + "\n")
-            file.write("num strokes:" + str(c_type.k)+ "\n")
-            for l in range(c_type.k):
-                file.write("Stroke #:" + str(l)+ "\n")
-                file.write("\tsub-stroke ids:" + str(list(c_type.part_types[l].ids.numpy()))+ "\n")
-                file.write("\\trelation category:" + str(c_type.relation_types[l].category)+ "\n")
-            file.write("----END CHARACTER TYPE INFO----" + "\n")
-        
             
-            #saves different tokens of the same character
-            for j in range(n_tokens):
-                c_token = self.CM.sample_token(c_type)
-                c_image = self.CM.sample_image(c_token)
+            
+            columns = 5
+            rows = n_characters // columns + (n_characters % columns > 0)
+            #fig ,ax= plt.subplots(nrows=rows,ncols=columns,figsize=(105,105))
+            fig = plt.figure(figsize=(105,105))
+            
+            count_images=0
+            
+            for i in range(n_characters):
                 
-                plt.rcParams["figure.figsize"] = [105, 105]
-                plt.imsave('/Users/carolinacaramelo/Desktop/alphabet/character%i' %i + '/char%s.' %j+".png", c_image, cmap='Greys')
-              
-        
-           
-            try:
-                count_images+=1
-                c_token = self.CM.sample_token(c_type)
-                c_image = self.CM.sample_image(c_token)
-                ax = fig.add_subplot(rows,columns,count_images)
-                ax.imshow(c_image,cmap='Greys')
+                path_character = "/Users/carolinacaramelo/Desktop/alphabets/alphabet%d" %n_alph + "/character%i"%i
+                os.makedirs(path_character)
+                c_type = self.DP_stype(perturbed, *args)
+                c_type = self.optimize(c_type,lr=1e-3, nb_iter=nb_iter, eps=1e-4, character=i+1, n_alph=n_alph) #still don't know what is happening here - make it work
+               
+                self.display_type(c_type)
+                file.write("character" + str(i) + "\n")
+                file.write("num strokes:" + str(c_type.k)+ "\n")
+                for l in range(c_type.k):
+                    file.write("Stroke #:" + str(l)+ "\n")
+                    file.write("\tsub-stroke ids:" + str(list(c_type.part_types[l].ids.numpy()))+ "\n")
+                    file.write("\\trelation category:" + str(c_type.relation_types[l].category)+ "\n")
+                    #ids.append(c_type.part_types[l].ids.tolist())
+                file.write("----END CHARACTER TYPE INFO----" + "\n")
+                    
                 
+                #saves different tokens of the same character
+                for j in range(n_tokens):
+                    c_token = self.CM.sample_token(c_type)
+                    c_image = self.CM.sample_image(c_token)
+                    
+                    plt.rcParams["figure.figsize"] = [105, 105]
+                    plt.imsave("/Users/carolinacaramelo/Desktop/alphabets/alphabet%d" %n_alph + "/character%i"%i + '/char%s.' %j+".png", c_image, cmap='Greys')
+            
+            
+               
+                try:
+                    count_images+=1
+                    c_token = self.CM.sample_token(c_type)
+                    c_image = self.CM.sample_image(c_token)
+                    ax = fig.add_subplot(rows,columns,count_images)
+                    ax.imshow(c_image,cmap='Greys')
+                    #ax.set_axis_off()
+                    
+                    
+                except:
+                    pass           
                 
-            except:
-                pass           
+            #fig.tight_layout()
+            fig.subplots_adjust(wspace=0, hspace=0)
+            plt.show()
             
-        fig.tight_layout()
-        plt.show()
-        fig.savefig('/Users/carolinacaramelo/Desktop/alphabet/alphabet.png', cmap="Greys")
-        file.close()
-            
+            fig.savefig("/Users/carolinacaramelo/Desktop/alphabets/alphabet%d"%n_alph +"/alphabet_board.png", cmap="Greys")
+            file.close()
+        #return ids
+                
             
      #USAR A GENERATE ALPHABET TEST PARA CRIAR OS ALFABETOS BIASES PARA CERTAS PRIMITIVAS
         

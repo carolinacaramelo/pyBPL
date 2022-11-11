@@ -27,6 +27,14 @@ import scipy.stats
 from scipy.stats import ks_2samp
 from torch.autograd import Variable
 
+# function to convert to subscript
+def get_sub(x):
+	normal = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-=()"
+	sub_s = "ₐ₈CDₑբGₕᵢⱼₖₗₘₙₒₚQᵣₛₜᵤᵥwₓᵧZₐ♭꜀ᑯₑբ₉ₕᵢⱼₖₗₘₙₒₚ૧ᵣₛₜᵤᵥwₓᵧ₂₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎"
+	res = x.maketrans(''.join(normal), ''.join(sub_s))
+	return x.translate(res)
+
+
 
 def flatten(l):
     return [item for sublist in l for item in sublist]
@@ -41,6 +49,7 @@ def dif_perturbations(beta):
     pT = R / torch.sum(R)
     d = -1 * torch.log(pT)
     ro_pT = torch.exp(-beta*d)/torch.sum(torch.exp(-beta*d))
+    np.savetxt("./new_pT",ro_pT )
     
     return pT,ro_pT 
 
@@ -52,6 +61,7 @@ def dif_perturbations_start(beta):
     logstart = torch.where(logstart==0, torch.tensor(1e-20, dtype=logstart.dtype), logstart)
     d_start = -1 *torch.log(logstart)
     ro_start = torch.exp(-beta*d_start)/torch.sum(torch.exp(-beta*d_start))
+    np.savetxt("./new_start",ro_start)
 
     return logstart,ro_start
 
@@ -81,6 +91,7 @@ def diffusion_perturbing(beta, threshold, constant):
     #normalize new pT matrix 
     new_pT= new_pT/new_pT.sum()
     new_pT = torch.tensor(new_pT)
+    np.savetxt("./new_pT", )
     
     return new_pT
 
@@ -133,9 +144,9 @@ def dif_perturbations_graph(beta):
     x = np.linspace(0, 1212*1212, 1212*1212)
     plt.figure (figsize=(10,10))
     plt.scatter(x, pT)
-    plt.title("Transition probabilities between primitives")
-    plt.ylabel("Probabilities")
-    plt.xlabel("Primitive pairs")
+    plt.title('$\it{pT}$ matrix', size=15)
+    plt.ylabel("Probability", size=12)
+    plt.xlabel("Primitive pairs", size=12)
     plt.show()
     
     #defining a distance function according to the diffusion process 
@@ -146,9 +157,9 @@ def dif_perturbations_graph(beta):
     x = np.linspace(0, 1212*1212, 1212*1212)
     plt.figure (figsize=(10,10))
     plt.scatter(x, d)
-    plt.title("Distance function in primitive space")
-    plt.ylabel("Distance")
-    plt.xlabel("Primitive pairs")
+    plt.title("Distance function in primitive space", size=15)
+    plt.ylabel("Distance", size=12)
+    plt.xlabel("Primitive pairs", size=12)
     plt.show()
     
     #computing ro_pT matrix
@@ -159,19 +170,22 @@ def dif_perturbations_graph(beta):
     #graph of ro_pT
     x = np.linspace(0, 1212*1212, 1212*1212)
     plt.figure (figsize=(10,10))
-    plt.scatter(x, ro_pT)
-    plt.title("Ro pT matrix")
-    plt.ylabel("Probability") #não tenho a certeza
-    plt.xlabel("Primitive pairs")
+    plt.scatter(x, ro_pT, label = "\u03B2 = 0.4")
+    plt.title(r"$\rho_{\it{pT}}$ " + "matrix", size=15)
+    plt.ylabel("Probability", size=12) #não tenho a certeza
+    plt.xlabel("Primitive pairs", size=12)
+    plt.legend()
     plt.show()
     
-    #line graph of ro_pT - ro_pT is the new perturbed matrix 
-    plt.figure (figsize=(10,10))
-    plt.plot(x, ro_pT)
-    plt.title("Ro pT matrix")
-    plt.ylabel("Probability") #não tenho a certeza
-    plt.xlabel("Primitive pairs")
-    plt.show()
+# =============================================================================
+#     #line graph of ro_pT - ro_pT is the new perturbed matrix 
+#     plt.figure (figsize=(10,10))
+#     plt.plot(x, ro_pT)
+#     plt.title("$\u03C1_{$\it{pT}$}$" +"matrix", size=15)
+#     plt.ylabel("Probability", size=12) #não tenho a certeza
+#     plt.xlabel("Primitive pairs", size=12)
+#     plt.show()
+# =============================================================================
     
     #LOGSTART MATRIX
     #getting logstart
@@ -184,9 +198,9 @@ def dif_perturbations_graph(beta):
     x = np.linspace(0, 1212, 1212)
     plt.figure (figsize=(10,10))
     plt.scatter(x, start)
-    plt.title("Primitive's probabilities of starting a stroke")
-    plt.ylabel("Probabilities")
-    plt.xlabel("Primitives")
+    plt.title('$\it{start}$ matrix', size=15)
+    plt.ylabel("Probability", size=12)
+    plt.xlabel("Primitive", size=12)
     plt.show()
 
     #defining a distance function according to the diffusion process 
@@ -197,24 +211,24 @@ def dif_perturbations_graph(beta):
     x = np.linspace(0, 1212, 1212)
     plt.figure (figsize=(10,10))
     plt.scatter(x, d_start)
-    plt.title("Distance function in primitive space")
-    plt.ylabel("Distance")
-    plt.xlabel("Primitives")
+    plt.title("Distance function in primitive space", size=15)
+    plt.ylabel("Distance", size=12)
+    plt.xlabel("Primitive", size=12)
     plt.show()
 
     #computing ro_start matrix 
     exp_dstart = torch.exp(-beta*d_start)
-    np.savetxt("./exp_dstart", exp_dstart)
     ro_start = exp_dstart/torch.sum(exp_dstart)
     np.savetxt("./ro_start", ro_start)
     
     #graph of ro_start
     x = np.linspace(0, 1212, 1212)
     plt.figure (figsize=(10,10))
-    plt.scatter(x, ro_start)
-    plt.title("Ro logStart matrix")
-    plt.ylabel("Distance")
-    plt.xlabel("Primitives")
+    plt.scatter(x, ro_start, label = "\u03B2 = 0.4")
+    plt.title(r"$\rho_{\it{start}}$ " + "matrix", size=15)
+    plt.ylabel("Probability", size=12)
+    plt.xlabel("Primitive", size=12)
+    plt.legend()
     plt.show()
    
     return ro_pT, ro_start #new_perturbed matrices 
@@ -228,11 +242,11 @@ def dif_perturbations_beta_viz():
     R = torch.exp(logR)
     pT = R / torch.sum(R)
     
-    beta = [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1]
+    beta = [0.9,0.1]
     plt.figure (figsize=(10,10))
-    plt.title("Ro pT matrix")
-    plt.ylabel("Probability") #não tenho a certeza
-    plt.xlabel("Primitive pairs")
+    plt.title(r"$\rho_{\it{pT}}$ " + "matrix", size=15)
+    plt.ylabel("Probability", size=12) #não tenho a certeza
+    plt.xlabel("Primitive pairs", size=12)
     for beta in beta:
         #defining a distance function according to the diffusion process 
         d = -1 * torch.log(pT)
@@ -241,7 +255,7 @@ def dif_perturbations_beta_viz():
         ro_pT = exp_d / torch.sum(exp_d)
         #graph of ro_pT
         x = np.linspace(0, 1212*1212, 1212*1212)
-        plt.scatter(x, ro_pT, label = 'Beta=%s' %beta)
+        plt.scatter(x, ro_pT, label = '\u03B2=%s' %beta)
         #plt.yticks(np.arange(0,5e-6, step=0.2))
     plt.legend()
     plt.show()
@@ -251,11 +265,11 @@ def dif_perturbations_beta_viz():
     start = torch.exp(lib.logStart) 
     start = torch.where(start==0, torch.tensor(1e-20, dtype=start.dtype), start)
     
-    beta = [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1]
+    beta = [0.9,0.1]
     plt.figure (figsize=(10,10))
-    plt.title("Ro logStart matrix")
-    plt.ylabel("Probability") #não tenho a certeza
-    plt.xlabel("Primitives")
+    plt.title(r"$\rho_{\it{start}}$ " + "matrix", size=15)
+    plt.ylabel("Probability", size=12) #não tenho a certeza
+    plt.xlabel("Primitive", size=12)
     for beta in beta:
         #defining a distance function according to the diffusion process 
         d_start = -1*torch.log(start)
@@ -263,8 +277,8 @@ def dif_perturbations_beta_viz():
         exp_dstart = torch.exp(-beta*d_start)
         ro_start = exp_dstart/torch.sum(exp_dstart)
         #graph of ro_start
-        x = np.linspace(0, 1212*1212, 1212*1212)
-        plt.scatter(x, ro_start, label = 'Beta=%s' %beta)
+        x = np.linspace(0, 1212, 1212)
+        plt.scatter(x, ro_start, label = '\u03B2=%s' %beta)
         #plt.yticks(np.arange(0,5e-6, step=0.2))
     plt.legend()
     plt.show()
@@ -371,11 +385,11 @@ def local_entropy(P, graph):
     
     if graph == True:
         y = entropy_out.reshape((P.shape[0], 1))
-        x= np.linspace(0,1212,1212)
+        x= np.linspace(0,1213,1213)
         plt.figure (figsize=(10,10))
         plt.scatter(x, y)
-        plt.title("Local entropy of transition matrix")
-        plt.ylabel("Entropy")
+        plt.title("Local entropy "+"$\it{pT}$ matrix")
+        plt.ylabel("Entropy (bits)")
         plt.xlabel("Matrix rows")
         plt.show()
     
@@ -392,10 +406,10 @@ def stationary_distribution(P, graph):
     mu = np.abs(v)/np.sum(np.abs(v))
     
     if graph == True:
-        x= np.linspace(0,1212,1212)
+        x= np.linspace(0,1213,1213)
         plt.figure (figsize=(10,10))
         plt.scatter(x, mu)
-        plt.title("Stationary distribution of transition matrix")
+        plt.title("Stationary distribution " +"$\it{pT}$ matrix")
         plt.ylabel("Probability")
         plt.xlabel("Matrix rows")
         plt.show()
@@ -421,6 +435,25 @@ def trajectory_entropy(P, graph):
     H = H.sum() #final step of summing the entries of the entropy matrix 
     return H
 
+def trajectory_entropy2(P, graph):
+    """Returns the matrix of trajectories entropy H associed to MC whose transition
+    probabilities are given by the numpy array P.
+    IMPORTANT: the MC is irreducile and aperiodic"""
+    n = P.shape[0]
+    mu = stationary_distribution(P, graph)
+    A = np.tile(mu, (n, 1))
+    # local entropies of the MC
+    l_entropy = local_entropy(P, graph)
+    H_star = np.tile(l_entropy, (1, n))
+    # entropy rate
+    entropy_rate = np.dot(mu.transpose(), l_entropy)
+    H_delta = np.diagflat(entropy_rate/mu)
+    K = np.dot(np.linalg.inv(np.identity(n) - P + A), H_star-H_delta)
+    K_tilda = np.tile(np.diag(K).transpose(), (n, 1))
+    H = K - K_tilda + H_delta
+     #final step of summing the entries of the entropy matrix 
+    return H
+
 #trajectory entropy logstart + pT original 
 def trajectory_entropy_original_total(graph):
     #getting the pT matrix 
@@ -441,6 +474,7 @@ def trajectory_entropy_original_total(graph):
     pT = torch.cat((start,pT),0)
 
     pT = pT.numpy()
+    pT = pT/pT.sum()
     np.set_printoptions(precision=3, suppress=True)
     #print("Transition probability matrix \n {}".format(pT))
     H = trajectory_entropy(pT, graph)
@@ -455,6 +489,8 @@ def trajectory_entropy_total(new_pT, new_start, graph):
     new_pT = torch.cat((new_start,new_pT),0)
 
     new_pT = new_pT.numpy()
+    new_pT = new_pT / new_pT.sum()
+    print(new_pT.sum())
     np.set_printoptions(precision=3, suppress=True)
     #print("Transition probability matrix \n {}".format(new_pT))
     H = trajectory_entropy(new_pT, graph)
@@ -480,14 +516,14 @@ def loss_function(param):
     beta = param
     new_pT = dif_perturbations(beta)[1]
     new_start = dif_perturbations_start(beta)[1]
-    loss =  - (trajectory_entropy_total(new_pT, new_start, False) - trajectory_entropy_original_total(False))
+    loss =  trajectory_entropy_total(new_pT, new_start, False) - trajectory_entropy_original_total(False)
     print("Loss function value\n {}".format(loss))
     return loss
 
 #in order to optimize the beta parameter - the beta trendline will gravitate towards this value 
 def grid_search():
     #beta values to take into consideration
-    beta = [5, 7,9,10] 
+    beta = [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9] 
     sample = list()
  
     for x in beta:
@@ -496,7 +532,7 @@ def grid_search():
      
     #loss function values for every combination of parameter values              
     sample_eval = [loss_function(beta) for beta in sample]
-    best = min(sample_eval)
+    best = max(sample_eval)
     index = sample_eval.index(best)
     best_parameters = sample[index]
     
@@ -730,3 +766,24 @@ def jensen_shannon_distance(p, q):
 def ks_test(p,q): #im not sure if it makes sense to do this 
     result = ks_2samp(p,q)
     return result 
+
+def plot_metrics():
+    plt.figure(figsize=(10,10))
+    N = 2
+    ind = np.arange(N) 
+    width = 0.15
+      
+    xvals = [0.3420028576879043, 0.057790425216303586 ]
+    bar1 = plt.bar(ind-width, xvals, width)
+      
+    yvals = [0.29638691614264556,0.12968721355147497]
+    bar2 = plt.bar(ind, yvals, width)
+      
+      
+    plt.ylabel("Distance value", size=12)
+    plt.title("Matrix comparison", size=15)
+      
+    plt.xticks(ind-width/2,[ '$\it{pT} matrix$ ', '$\it{start}$ matrix'])
+    plt.legend( (bar1, bar2), ('KL-divergence', 'Jensen Shannon distance') )
+    plt.show()
+    

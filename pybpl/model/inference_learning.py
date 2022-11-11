@@ -46,27 +46,55 @@ def list_files(dir):
 
 def inference():
     model = Perturbing()
-    dir = '/Users/carolinacaramelo/Desktop/alphabet' #put here the directory that we are supposed to use - where tha alphabets are stored
+    dir = '/Users/carolinacaramelo/Desktop/inf_test' #put here the directory that we are supposed to use - where tha alphabets are stored
     r = list_files(dir)
-    num = 1
+    num = 0
     list_ids = []
     path = "./processed"
     os.makedirs(path)
-    for root, dirs, files in os.walk(dir):
-        for name in files:
-            try:
-                print(num)
-                im = Image.open(r[num])
-                process_image(im, num)
-                eng.demo_fit_perturbing(num,nargout=0)
-                print("done")
-                model.load()
-                print(model.ids)
-                list_ids += model.ids
-                num +=1
-            except:
-                pass
+    list_ch_omniglot =[]
+    list_ch_perturbed =[]
+
+    for root in os.listdir(dir):
+        root = os.path.join(dir,root)
+        for dirs in os.listdir(root):
+            dirs = os.path.join(root, dirs)
+            for files in os.listdir(dirs):
+                files = os.path.join(dirs, files)
+                for name in os.listdir(files):
+                    name = os.path.join(files, name)
+                    try:
+                        print(name)
+                        #im = Image.open(r[num])
+                        im =  Image.open(name)
+                        process_image(im, num)
+                        eng.demo_fit_perturbing(num,nargout=0)
+                        print("done")
+                        model.load()
+                        print(model.ids)
+                        list_ids += model.ids
+                        num +=1
+                        
+                        if root == "/Users/carolinacaramelo/Desktop/inf_test/perturbed":
+                            list_ch_perturbed +=[model.ids]
+                            print(root)
+                            print(list_ch_perturbed)
+                        if root ==  "/Users/carolinacaramelo/Desktop/inf_test/omniglot":
+                            list_ch_omniglot +=[model.ids]
+                            print(root)
+                            print(list_ch_omniglot)
+                            
+                    except:pass
+                    
+    list_ch_omniglot = np.array(list_ch_omniglot)
+    list_ch_perturbed = np.array(list_ch_perturbed)
+    
+    np.savetxt("./list_ids_perturbed", list_ch_perturbed,fmt='%s')
+    np.savetxt("./list_ids_omniglot", list_ch_omniglot,fmt='%s')
+   
     return list_ids
+    
+     
 
 def empirical_countings(): 
     list_ids = inference()
@@ -98,33 +126,39 @@ def empirical_countings():
     pT = pT / total_trans #new pT
     print(pT)
     print(logstart)
-    np.savetxt("./list_ids_empirical_countings", list_ids)
+    list_ids = np.array(list_ids)
+    
+    np.savetxt("./list_ids_empirical_countings", list_ids,fmt='%s')
     
     return logstart, pT, list_ids
     
                 
 def main(): #provavelmente vou ter de fazer um except aqui porque existe uma entrada da logstart que é infinita 
-    lib = Library (use_hist=True)
-    #getting original logstart matrix 
-    original_logstart = lib.logStart
-    #getting original pT matrix 
-    logT = lib.logT
-    R = torch.exp(logT)
-    original_pT = R / torch.sum(R)
+# =============================================================================
+#     lib = Library (use_hist=True)
+#     #getting original logstart matrix 
+#     original_logstart = lib.logStart
+#     #getting original pT matrix 
+#     logT = lib.logT
+#     R = torch.exp(logT)
+#     original_pT = R / torch.sum(R)
+# =============================================================================
     
     #doing inference and estimating new matrices 
     results = empirical_countings() #empirical counting does the inference inside
-    new_logstart = results[0]
-    new_pT = results[1]
+    final_start = results[0]
+    final_start = np.array(final_start)
+    final_pT = results[1]
+    final_pT = np.array(final_pT)
     
     #final matrices 
-    final_logstart = (original_logstart + new_logstart)/2 #still have to decide how to do this 
-    final_pT = (original_pT + new_pT)/2
+    #final_logstart = (original_logstart + new_logstart)/2 #still have to decide how to do this 
+    #final_pT = (original_pT + new_pT)/2
     
-    np.savetxt("./final_logstart", final_logstart)
+    np.savetxt("./final_start",final_start)
     np.savetxt("./final_pT", final_pT)
     
-    return final_logstart, final_pT #talvez faça sentido guardar as matrizes no bloco de notas e depois fazer upload onde for necessário
+    return final_start, final_pT #talvez faça sentido guardar as matrizes no bloco de notas e depois fazer upload onde for necessário
     
                  
         
