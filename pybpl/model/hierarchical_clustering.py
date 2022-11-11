@@ -1,73 +1,113 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Wed Nov  9 12:32:11 2022
+Created on Wed Nov  9 17:16:15 2022
 
 @author: carolinacaramelo
 """
-from sklearn.cluster import AgglomerativeClustering
+
+
 import numpy as np
 import pandas as pd
-import sgt
-from sgt import SGT
-import pandarallel 
-from sklearn.decomposition import PCA
-from sklearn.cluster import KMeans
+
+import scipy
+from scipy.cluster.hierarchy import dendrogram,linkage
+
 import matplotlib.pyplot as plt
-import scipy.cluster.hierarchy as shc
+
+from sklearn.decomposition import PCA
 
 
 
-corpus = pd.DataFrame([["character1_perturbed", [2,3,4]], 
-                        ["character1_perturbed", [2,3,4]], 
-                        ["character1_perturbed", [2,3,4]],
-                        ["character2_perturbed", [222,332,41]],
-                        ["character2_perturbed", [222,321,41]],
-                        ["character3_perturbed", [89,103,456,678]],
-                        ["character3_perturbed", [88,103,456,678]],
-                        ["character1_omniglot", [5]],
-                        ["character1_omniglot", [5]],
-                        ["character2_omniglot", [1212,465,900,12,32]],
-                        ["character2_omniglot", [1212,465,900,10,23]],
-                        ["character2_omniglot", [1212,465,900,10,780]],
-                        ["character3_omniglot", [222,332,432,100,176]],
-                        ["character3_omniglot", [222,300,432,100,176]],
-                        ["character4_omniglot", [2,10]]], columns=['id', 'sequence'])
-
-
-corpus = corpus.drop('id', axis=1)
 # =============================================================================
-# sgt_ = SGT(kappa=1, 
-#            lengthsensitive=False, 
-#            mode='multiprocessing')
-# sgtembedding_df = sgt_.fit_transform(corpus)
-# 
-# print(sgtembedding_df)
-# 
-# sgtembedding_df = sgtembedding_df.set_index('id')
-# sgtembedding_df
-# 
-# pca = PCA(n_components=2)
-# pca.fit(sgtembedding_df)
-# 
-# X=pca.transform(sgtembedding_df)
-# 
-# print(np.sum(pca.explained_variance_ratio_))
-# df = pd.DataFrame(data=X, columns=['x1', 'x2'])
-# print(df.head())
-# 
-# kmeans = KMeans(n_clusters=3, max_iter =300)
-# kmeans.fit(df)
-# 
-# labels = kmeans.predict(df)
-# centroids = kmeans.cluster_centers_
-# 
-# fig = plt.figure(figsize=(5, 5))
-# colmap = {1: 'r', 2: 'g', 3: 'b'}
-# colors = list(map(lambda x: colmap[x+1], labels))
-# plt.scatter(df['x1'], df['x2'], color=colors, alpha=0.5, edgecolor=colors)
+# import sklearn
+# from sklearn import datasets
+from sklearn.cluster import AgglomerativeClustering
+# import sklearn.metrics as sm
+# from sklearn.preprocessing import scale
 # =============================================================================
+import pandarallel
+
+
+import sgt
+sgt.__version__
+from sgt import SGT
+
+# =============================================================================
+# data = pd.DataFrame([["ch1",[2,3,4]],["ch2",[56,78,96]],["ch3",[90,312,56,390]],["ch4",[3,4,2]],["ch5",[90,23,12]],["ch6",[9,45,32,1000]]], columns=["id", "sequence"])
+# data = list(zip(for l in data["sequence"]))
+# 
+# print(data)
+# 
+# 
+# plt.figure(figsize=(10, 7))  
+# plt.title("Dendrograms")  
+# dend = shc.dendrogram(shc.linkage(data, method='ward'))
+# =============================================================================
+
+
+
+
+# A sample corpus of two sequences.
+corpus = pd.DataFrame([["char_1", [2,3,4]], 
+                       ["char_2", [56,78,96]], ["char_3", [90,312,56,390]], 
+                       ["char_4",[3,4,2]], 
+                       ["char_5",[90,23,12]],["char_6",[9,45,32,1000]],
+                       ["char_7", [56,78,100,45]], ["char_8",[3,4]], 
+                       ["char_9", [90,312,65,1212]], 
+                       ["char_10",[90,312,90,23,9]]],
+                      columns=['id', 'sequence'])
+
+print(corpus)
+
+
+sgt_ = SGT(kappa=1, 
+           lengthsensitive=False, 
+           mode='multiprocessing')
+sgtembedding_df = sgt_.fit_transform(corpus)
+
+print(sgtembedding_df)
+
+sgtembedding_df = sgtembedding_df.set_index('id')
+labels = sgtembedding_df.index
+print(labels)
+
+#performing PCA 
+pca = PCA(n_components=2)
+pca.fit(sgtembedding_df)
+
+X=pca.transform(sgtembedding_df)
+
+print(np.sum(pca.explained_variance_ratio_))
+df = pd.DataFrame(data=X, columns=['x1', 'x2'])
+print(df)
+
+Z = linkage(sgtembedding_df, 'ward')
+W =  linkage(df, 'ward')
+ 
+print(Z)
+print("Z shape", Z.shape)
+  
+fig, ax = plt.subplots(figsize=(12,8))
+plt.title("Ward")
+dendrogram(Z, labels=labels)      # Call dendrogram on Z
+plt.show()
+
+fig, ax = plt.subplots(figsize=(12,8))
+plt.title("Ward")
+dendrogram(W)      # Call dendrogram on Z
+plt.show()
+
+
+hierarchical_cluster = AgglomerativeClustering(n_clusters=2, affinity='euclidean', linkage='ward')
+labels = hierarchical_cluster.fit_predict(sgtembedding_df) 
+print(labels)
+
 
 plt.figure(figsize=(10, 7))  
-plt.title("Dendrograms")  
-dend = shc.dendrogram(shc.linkage(corpus, method='ward'))
+plt.scatter(df['x1'], df['x2'], c=labels) 
+plt.show()
+
+
+
+
