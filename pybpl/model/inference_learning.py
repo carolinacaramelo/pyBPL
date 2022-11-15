@@ -54,6 +54,8 @@ def inference():
     os.makedirs(path)
     list_ch_omniglot =[]
     list_ch_perturbed =[]
+    list_dir_omniglot = []
+    list_dir_perturbed = []
 
     for root in os.listdir(dir):
         root = os.path.join(dir,root)
@@ -77,10 +79,12 @@ def inference():
                         
                         if root == "/Users/carolinacaramelo/Desktop/inf_test/perturbed":
                             list_ch_perturbed +=[model.ids]
+                            list_dir_perturbed += [name]
                             print(root)
                             print(list_ch_perturbed)
                         if root ==  "/Users/carolinacaramelo/Desktop/inf_test/omniglot":
                             list_ch_omniglot +=[model.ids]
+                            list_dir_omniglot += [name]
                             print(root)
                             print(list_ch_omniglot)
                             
@@ -88,9 +92,12 @@ def inference():
                     
     list_ch_omniglot = np.array(list_ch_omniglot)
     list_ch_perturbed = np.array(list_ch_perturbed)
-    
+    list_dir_omniglot = np.array(list_dir_omniglot)
+    list_dir_perturbed = np.array(list_dir_perturbed)
     np.savetxt("./list_ids_perturbed", list_ch_perturbed,fmt='%s')
     np.savetxt("./list_ids_omniglot", list_ch_omniglot,fmt='%s')
+    np.savetxt("./list_dir_perturbed", list_dir_perturbed,fmt='%s')
+    np.savetxt("./list_dir_omniglot", list_dir_omniglot,fmt='%s')
    
     return list_ids
     
